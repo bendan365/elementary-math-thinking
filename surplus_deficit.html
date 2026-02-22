@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>盈亏问题可视化演示</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .desc {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .input-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        .scenario-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 80px;
+        }
+        select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            min-height: 400px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden; /* Allow scrolling if needed, but usually fit */
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .info-panel {
+            background-color: #eef2ff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: left;
+            margin-top: 20px;
+            border: 1px solid #dbeafe;
+        }
+        .formula-box {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #2563eb;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        .highlight {
+            color: #dc2626;
+            font-weight: bold;
+        }
+        .highlight-green {
+            color: #10b981;
+            font-weight: bold;
+        }
+        .step-explanation {
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>盈亏问题可视化演示</h1>
+    <div class="desc">输入两种分配方案，点击“开始分析”查看解题过程和原理。</div>
+
+    <div class="input-panel">
+        <div class="scenario-row">
+            <strong>方案一：</strong>
+            <div class="input-group">
+                每人分 <input type="number" id="perPerson1" value="5" min="1"> 个，
+            </div>
+            <div class="input-group">
+                <select id="type1">
+                    <option value="surplus" selected>剩余 (盈)</option>
+                    <option value="deficit">缺少 (亏)</option>
+                </select>
+                <input type="number" id="amount1" value="10" min="0"> 个
+            </div>
+        </div>
+        
+        <div class="scenario-row">
+            <strong>方案二：</strong>
+            <div class="input-group">
+                每人分 <input type="number" id="perPerson2" value="7" min="1"> 个，
+            </div>
+            <div class="input-group">
+                <select id="type2">
+                    <option value="surplus">剩余 (盈)</option>
+                    <option value="deficit" selected>缺少 (亏)</option>
+                </select>
+                <input type="number" id="amount2" value="6" min="0"> 个
+            </div>
+        </div>
+
+        <button class="btn" onclick="calculateAndVisualize()">开始分析</button>
+    </div>
+
+    <div class="container" id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="info-panel" id="resultPanel" style="display:none;">
+        <h3>📊 分析结果：</h3>
+        <div id="textResult"></div>
+        
+        <h4>🧮 计算公式：</h4>
+        <div class="formula-box" id="formulaDisplay">
+            人数 = 总差额 ÷ 分配差<br>
+            人数 = (<span class="highlight">10</span> + <span class="highlight-green">6</span>) ÷ (7 - 5) = 8 人
+        </div>
+
+        <div class="step-explanation">
+            <strong>逻辑解析：</strong>
+            <p id="logicExplanation">
+                从“每人5个”变成“每人7个”，每个人多拿了 2 个。<br>
+                这些多出来的东西，先用掉了方案一剩下的 10 个，又透支（缺了）6 个。<br>
+                所以总共多分配了 10 + 6 = 16 个。<br>
+                因为每人多拿 2 个，所以共有 16 ÷ 2 = 8 人。
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        // State
+        let peopleCount = 0;
+        let totalItems = 0;
+        let p1 = { per: 0, type: '', val: 0 };
+        let p2 = { per: 0, type: '', val: 0 };
+        let isValid = false;
+
+        function resize() {
+            if (isValid) {
+                draw();
+            } else {
+                canvas.width = container.clientWidth;
+                canvas.height = 450;
+            }
+        }
+
+        window.addEventListener('resize', resize);
+
+        function calculateAndVisualize() {
+            // Get inputs
+            const per1 = parseInt(document.getElementById('perPerson1').value);
+            const amt1 = parseInt(document.getElementById('amount1').value);
+            const type1 = document.getElementById('type1').value;
+
+            const per2 = parseInt(document.getElementById('perPerson2').value);
+            const amt2 = parseInt(document.getElementById('amount2').value);
+            const type2 = document.getElementById('type2').value;
+
+            // Validate
+            if (per1 === per2) {
+                alert("两次分配每人数量不能相同，否则无法计算人数（除非剩余/缺少数量也完全相同，那就是同一种方案）。");
+                return;
+            }
+
+            // Calculate
+            // Formula: People * per1 + rem1 = People * per2 + rem2
+            // rem is positive for surplus, negative for deficit
+            let rem1 = type1 === 'surplus' ? amt1 : -amt1;
+            let rem2 = type2 === 'surplus' ? amt2 : -amt2;
+
+            // (per1 - per2) * People = rem2 - rem1
+            // People = (rem2 - rem1) / (per1 - per2)
+            
+            const diffRem = rem2 - rem1;
+            const diffPer = per1 - per2;
+            
+            const people = diffRem / diffPer;
+
+            // Check for integer with tolerance
+            if (people <= 0 || Math.abs(people - Math.round(people)) > 0.0001) {
+                alert("计算结果人数为 " + people.toFixed(2) + "，不是正整数。请检查题目数据是否合理。");
+                return;
+            }
+            
+            peopleCount = Math.round(people);
+            totalItems = peopleCount * per1 + rem1;
+            
+            // Normalize so plan with smaller per-person is first for visualization logic usually
+            // But let's just store as entered
+            p1 = { per: per1, type: type1, val: amt1, realRem: rem1 };
+            p2 = { per: per2, type: type2, val: amt2, realRem: rem2 };
+            isValid = true;
+
+            updateUI(people, totalItems, per1, per2, rem1, rem2);
+            draw();
+        }
+
+        function updateUI(people, total, per1, per2, rem1, rem2) {
+            const panel = document.getElementById('resultPanel');
+            panel.style.display = 'block';
+
+            const textRes = document.getElementById('textResult');
+            textRes.innerHTML = `<p>计算得出：共有 <strong>${people}</strong> 人，物品总数 <strong>${total}</strong> 个。</p>`;
+
+            // Explanation logic
+            // Always try to frame as: changing from Plan A (smaller) to Plan B (larger)
+            let small, large, smallRem, largeRem;
+            if (per1 < per2) {
+                small = per1; smallRem = rem1;
+                large = per2; largeRem = rem2;
+            } else {
+                small = per2; smallRem = rem2;
+                large = per1; largeRem = rem1;
+            }
+
+            const perDiff = large - small;
+            
+            const totalDiff = smallRem - largeRem;
+            
+            let gapStr = "";
+            if (smallRem > 0 && largeRem < 0) {
+                gapStr = `方案一多了 <span class="highlight">${smallRem}</span> 个，方案二少了 <span class="highlight-green">${Math.abs(largeRem)}</span> 个。<br>总差异 = ${smallRem} + ${Math.abs(largeRem)} = ${totalDiff}`;
+            } else if (smallRem > 0 && largeRem > 0) {
+                gapStr = `两次都有剩余。方案一剩 ${smallRem}，方案二剩 ${largeRem}。<br>总差异 = ${smallRem} - ${largeRem} = ${totalDiff}`;
+            } else if (smallRem < 0 && largeRem < 0) {
+                 gapStr = `两次都不够。方案一缺 ${Math.abs(smallRem)}，方案二缺 ${Math.abs(largeRem)}。<br>总差异 = ${Math.abs(largeRem)} - ${Math.abs(smallRem)} = ${totalDiff}`;
+            } else {
+                 // Deficit to Surplus (unlikely if going from small per-person to large per-person, but math works)
+                 gapStr = `总差异 = ${smallRem} - (${largeRem}) = ${totalDiff}`;
+            }
+
+            document.getElementById('formulaDisplay').innerHTML = `
+                人数 = 总差异 ÷ 分配差<br>
+                人数 = ${totalDiff} ÷ (${large} - ${small}) = ${people} (人)<br>
+                总数 = ${people} × ${small} + (${smallRem}) = ${total} (个)
+            `;
+
+            document.getElementById('logicExplanation').innerHTML = `
+                从“每人分 ${small} 个”变成“每人分 ${large} 个”，每人多拿了 <strong>${perDiff}</strong> 个。<br>
+                ${gapStr}。<br>
+                把这 ${totalDiff} 个物品分给所有人，刚好每人分到 ${perDiff} 个。<br>
+                所以人数 = ${totalDiff} ÷ ${perDiff} = ${people} 人。
+            `;
+        }
+
+        function draw() {
+            if (!isValid) return;
+
+            const w = container.clientWidth;
+            
+            // Vertical Layout Constants
+            const margin = 40;
+            const rowH = 60; // Height per person row
+            const personW = 50; // Width reserved for person icon
+            const itemBox = 15; 
+            const itemSpacing = 2;
+            const itemUnitW = itemBox + itemSpacing;
+            const startY = 160; // Start drawing people below the "Source Analysis"
+            
+            // Calculate Height
+            const maxRows = 12;
+            let drawCount = peopleCount;
+            let showEllipsis = false;
+            if (peopleCount > maxRows) {
+                drawCount = maxRows - 1; 
+                showEllipsis = true;
+            }
+            
+            // Canvas Height
+            // Header + Rows + Legend
+            // Calculate totalH correctly before setting canvas height
+            let totalH = startY + (drawCount + (showEllipsis ? 1 : 0)) * rowH + 150; // Increased buffer
+            
+            // Ensure minimum height
+            totalH = Math.max(450, totalH);
+            
+            if (canvas.width !== w || canvas.height !== totalH) {
+                canvas.width = w;
+                canvas.height = totalH;
+            }
+
+            ctx.clearRect(0, 0, w, totalH);
+
+            // Settings
+            let smallPer = Math.min(p1.per, p2.per);
+            let largePer = Math.max(p1.per, p2.per);
+            
+            // Identify plans
+            let smallPlan = p1.per < p2.per ? p1 : p2;
+            let largePlan = p1.per < p2.per ? p2 : p1;
+            
+            // Calculate Inventory vs Borrowed Logic
+            let totalInventoryAvailable = Math.max(0, smallPlan.realRem) - Math.max(0, largePlan.realRem);
+            let remainingInventoryToDraw = totalInventoryAvailable;
+
+            // 1. Draw People Vertically
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+
+            let currentY = startY;
+            const personX = margin + 20; // Center of person
+            const itemsStartX = margin + personW + 20;
+            
+            // Helper to draw person
+            function drawPerson(x, y, index) {
+                const headR = 12;
+                // Head
+                ctx.beginPath();
+                ctx.arc(x, y - 10, headR, 0, Math.PI*2);
+                ctx.fillStyle = '#fbbf24'; 
+                ctx.fill();
+                ctx.stroke();
+
+                // Body
+                ctx.beginPath();
+                ctx.moveTo(x, y + 2);
+                ctx.lineTo(x, y + 20);
+                // Arms
+                ctx.moveTo(x - 10, y + 8);
+                ctx.lineTo(x + 10, y + 8);
+                // Legs
+                ctx.moveTo(x, y + 20);
+                ctx.lineTo(x - 8, y + 32);
+                ctx.moveTo(x, y + 20);
+                ctx.lineTo(x + 8, y + 32);
+                
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Label
+                ctx.fillStyle = '#666';
+                ctx.fillText((index+1) + "号", x, y + 50);
+            }
+            
+            // Helper for Horizontal Item Row
+            function drawItemRow(startX, centerY, count, color, isOutline = false) {
+                const boxSize = 15;
+                const spacing = 2;
+                const y = centerY - boxSize/2;
+                
+                ctx.fillStyle = color;
+                ctx.strokeStyle = color;
+                
+                for (let i = 0; i < count; i++) {
+                    const x = startX + (i * (boxSize + spacing));
+                    if (isOutline) {
+                        ctx.strokeRect(x, y, boxSize, boxSize);
+                        ctx.save();
+                        ctx.globalAlpha = 0.3;
+                        ctx.fillRect(x, y, boxSize, boxSize);
+                        ctx.restore();
+                    } else {
+                        ctx.fillRect(x, y, boxSize, boxSize);
+                    }
+                }
+            }
+
+            for (let i = 0; i < drawCount; i++) {
+                drawPerson(personX, currentY + 10, i); // Adjust Y to align center
+                
+                // Draw 'smallPer' items (Base)
+                drawItemRow(itemsStartX, currentY + 10, smallPer, '#3b82f6'); // Blue
+                
+                // Draw extra items
+                let extraCount = largePer - smallPer;
+                let fromInventory = 0;
+                let fromBorrowed = 0;
+                
+                if (remainingInventoryToDraw >= extraCount) {
+                    fromInventory = extraCount;
+                    remainingInventoryToDraw -= extraCount;
+                } else if (remainingInventoryToDraw > 0) {
+                    fromInventory = remainingInventoryToDraw;
+                    fromBorrowed = extraCount - fromInventory;
+                    remainingInventoryToDraw = 0;
+                } else {
+                    fromBorrowed = extraCount;
+                }
+                
+                // Draw Inventory part
+                if (fromInventory > 0) {
+                    drawItemRow(itemsStartX + (smallPer * itemUnitW), currentY + 10, fromInventory, '#10b981'); // Green
+                }
+                
+                // Draw Borrowed part
+                if (fromBorrowed > 0) {
+                     let baseOffset = (smallPer + fromInventory) * itemUnitW;
+                     drawItemRow(itemsStartX + baseOffset, currentY + 10, fromBorrowed, '#ef4444', true); // Red Outline
+                }
+                
+                currentY += rowH;
+            }
+
+            if (showEllipsis) {
+                ctx.fillStyle = '#666';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('...', personX, currentY + 20);
+                
+                currentY += rowH * 0.8; // Space for ellipsis
+                
+                // Draw last person
+                drawPerson(personX, currentY + 10, peopleCount - 1);
+                
+                drawItemRow(itemsStartX, currentY + 10, smallPer, '#3b82f6');
+                
+                // For the last person logic
+                let extraCount = largePer - smallPer;
+                let totalDistributedBefore = (peopleCount - 1) * extraCount;
+                let globalInv = totalInventoryAvailable;
+                let leftForLast = Math.max(0, globalInv - totalDistributedBefore);
+                let lastInventory = Math.min(extraCount, leftForLast);
+                let lastBorrowed = extraCount - lastInventory;
+                
+                if (lastInventory > 0) {
+                     drawItemRow(itemsStartX + (smallPer * itemUnitW), currentY + 10, lastInventory, '#10b981');
+                }
+                if (lastBorrowed > 0) {
+                     let baseOffset = (smallPer + lastInventory) * itemUnitW;
+                     drawItemRow(itemsStartX + baseOffset, currentY + 10, lastBorrowed, '#ef4444', true);
+                }
+                currentY += rowH; // Advance for bounding box calc
+            }
+
+            // Draw ONE big dashed rectangle around ALL extra items
+            let extraCount = largePer - smallPer;
+            if (extraCount > 0 && peopleCount > 0) {
+                 const boxSize = 15;
+                 const spacing = 2;
+                 const itemUnitW = boxSize + spacing;
+                 const p = 8;
+                 
+                 // Left X: Start of extra items
+                 let leftX = itemsStartX + (smallPer * itemUnitW) - p/2;
+                 
+                 // Right X: End of extra items
+                 let rightX = leftX + (extraCount * itemUnitW) + p;
+                 
+                 // Top Y: Start Y of first row
+                 let topY = startY + 10 - boxSize/2 - p;
+                 
+                 // Bottom Y: End Y of last row
+                 // Last row was drawn at currentY - rowH (since we incremented at end of loop)
+                 // Actually currentY points to next empty slot. 
+                 // The center of the last row items was (currentY - rowH + 10).
+                 let lastRowCenterY = currentY - rowH + 10;
+                 let bottomY = lastRowCenterY + boxSize/2 + p;
+                 
+                 // Draw the big rectangle
+                 ctx.save();
+                 ctx.setLineDash([8, 4]);
+                 ctx.strokeStyle = '#666';
+                 ctx.lineWidth = 2;
+                 
+                 ctx.strokeRect(leftX, topY, rightX - leftX, bottomY - topY);
+                 
+                 // Add label for the group
+                 ctx.fillStyle = '#666';
+                 ctx.font = 'bold 14px Arial';
+                 ctx.textAlign = 'center';
+                 // Position label above the box
+                 const totalNeeded = (largePlan.per - smallPlan.per) * peopleCount;
+                 ctx.fillText(`总共多分配 ${totalNeeded} 个`, (leftX + rightX)/2, topY - 10);
+                 
+                 ctx.restore();
+                 
+                 // Draw Arrow from Source Analysis to the Top of the Box
+                 const sourceX = w / 2;
+                 const sourceY = 50;
+                 const targetX = (leftX + rightX)/2;
+                 const targetY = topY - 20;
+                 
+                 // Only if space
+                 if (targetY > sourceY + 60) {
+                     drawArrow(ctx, sourceX, sourceY + 60, targetX, targetY);
+                 }
+            }
+
+            // 2. Legend / Explanation
+            const infoY = currentY + 30; 
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#333';
+            ctx.font = '16px Arial';
+            
+            // Base items
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(margin, infoY, 15, 15);
+            ctx.fillStyle = '#333';
+            ctx.fillText(`基础分配：每人 ${smallPlan.per} 个`, margin + 25, infoY + 12);
+            
+            // Inventory items (Green)
+            ctx.fillStyle = '#10b981';
+            ctx.fillRect(margin + 200, infoY, 15, 15);
+            ctx.fillStyle = '#333';
+            ctx.fillText(`来自存货 (剩余)`, margin + 225, infoY + 12);
+            
+            // Borrowed items (Red)
+            ctx.strokeStyle = '#ef4444';
+            ctx.strokeRect(margin + 350, infoY, 15, 15);
+            ctx.save();
+            ctx.fillStyle = '#ef4444';
+            ctx.globalAlpha = 0.3;
+            ctx.fillRect(margin + 350, infoY, 15, 15);
+            ctx.restore();
+            ctx.fillStyle = '#333';
+            ctx.fillText(`来自虚借 (透支)`, margin + 375, infoY + 12);
+
+            // Draw the "Source" of the red items
+            const sourceX = w / 2;
+            const sourceY = 50;
+            
+            // Title for Source area
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText("新增物品来源分析", sourceX, sourceY);
+            
+            // Calculate total needed
+            const totalNeeded = (largePlan.per - smallPlan.per) * peopleCount;
+            
+            let explanationText = "";
+            let borrowedUsed = totalNeeded - totalInventoryAvailable;
+            
+             if (borrowedUsed > 0 && totalInventoryAvailable > 0) {
+                explanationText = `${totalNeeded} (总需) = ${totalInventoryAvailable} (存货) + ${borrowedUsed} (虚借)`;
+            } else if (borrowedUsed > 0) {
+                explanationText = `${totalNeeded} (总需) = ${borrowedUsed} (全靠虚借)`;
+            } else {
+                explanationText = `${totalNeeded} (总需) = ${totalInventoryAvailable} (全靠存货)`;
+            }
+
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#333';
+            ctx.fillText(explanationText, sourceX, sourceY + 40);
+
+        }
+        
+        function drawArrow(ctx, fromX, fromY, toX, toY) {
+            const headlen = 10; // length of head in pixels
+            const dx = toX - fromX;
+            const dy = toY - fromY;
+            const angle = Math.atan2(dy, dx);
+            
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.strokeStyle = "#999";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.lineTo(toX, toY);
+            ctx.fillStyle = "#999";
+            ctx.fill();
+        }
+
+        // Init
+        resize();
+        calculateAndVisualize(); // Auto start with default values
+        
+    </script>
+</body>
+</html>

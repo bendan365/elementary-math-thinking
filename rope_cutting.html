@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>剪绳问题可视化</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .desc {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .input-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        select, input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .btn {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #dc2626;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .info-panel {
+            background-color: #fff1f2;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: left;
+            margin-top: 20px;
+            border: 1px solid #fecaca;
+        }
+        .formula-box {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #ef4444;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .highlight { color: #dc2626; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>✂️ 剪绳问题可视化 ✂️</h1>
+    <div class="desc">直观展示“剪绳子”的数学规律：段数 = 次数 + 1 (直线) 或其他变体</div>
+
+    <div class="input-panel">
+        <div class="input-group">
+            <label>模式：</label>
+            <select id="modeSelect" onchange="updateMode()">
+                <option value="straight">直线剪绳 (Straight)</option>
+                <option value="loop">环形剪绳 (Loop)</option>
+                <option value="fold">折叠剪绳 (Folded)</option>
+            </select>
+        </div>
+        
+        <div class="input-group" id="cutInputGroup">
+            <label>剪切次数 (n)：</label>
+            <input type="number" id="cutCount" value="3" min="1" max="10" onchange="draw()"> 次
+        </div>
+
+        <div class="input-group" id="foldInputGroup" style="display:none;">
+            <label>折叠次数 (m)：</label>
+            <input type="number" id="foldCount" value="1" min="1" max="4" onchange="draw()"> 次
+            <span style="font-size: 14px; color: #666;">(对折 m 次)</span>
+        </div>
+
+        <button class="btn" onclick="draw()">✂️ 重新剪切</button>
+    </div>
+
+    <div class="container" id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="info-panel">
+        <h3>📊 规律总结：</h3>
+        <div class="formula-box" id="formulaDisplay">
+            <!-- Formula injected here -->
+        </div>
+        <div id="explanationText"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        // State
+        let mode = 'straight';
+        let cuts = 3;
+        let folds = 1;
+
+        function resize() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            draw();
+        }
+        window.addEventListener('resize', resize);
+
+        function updateMode() {
+            mode = document.getElementById('modeSelect').value;
+            const foldGroup = document.getElementById('foldInputGroup');
+            const cutGroup = document.getElementById('cutInputGroup');
+            
+            if (mode === 'fold') {
+                foldGroup.style.display = 'flex';
+                // For fold mode, we usually just cut once in the middle to demonstrate the power of 2
+                // But let's allow multiple cuts if user wants, though "cut once" is the standard problem.
+                // Let's keep cut count but maybe default to 1 for clarity in fold mode?
+                // Actually, standard problem is "fold m times, cut k times".
+            } else {
+                foldGroup.style.display = 'none';
+            }
+            draw();
+        }
+
+        function draw() {
+            cuts = parseInt(document.getElementById('cutCount').value);
+            folds = parseInt(document.getElementById('foldCount').value);
+            
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            let pieces = 0;
+            let formula = "";
+            let explanation = "";
+
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+
+            if (mode === 'straight') {
+                // Straight Rope
+                const ropeY = h / 2;
+                const margin = 50;
+                const ropeLength = w - 2 * margin;
+                
+                // Draw Rope Segments
+                const segmentLen = ropeLength / (cuts + 1);
+                pieces = cuts + 1;
+                
+                ctx.strokeStyle = '#d97706'; // Rope color
+                
+                for (let i = 0; i <= cuts; i++) {
+                    const startX = margin + i * segmentLen + (i * 10); // Add gap
+                    const endX = startX + segmentLen;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(startX, ropeY);
+                    ctx.lineTo(endX, ropeY);
+                    ctx.stroke();
+
+                    // Draw Scissors/Cut mark
+                    if (i < cuts) {
+                        drawScissors(endX + 5, ropeY);
+                    }
+                    
+                    // Number the pieces
+                    ctx.fillStyle = '#333';
+                    ctx.font = '16px Arial';
+                    ctx.fillText(i + 1, startX + segmentLen/2, ropeY + 30);
+                }
+
+                formula = `段数 = 次数 + 1 = <span class="highlight">${pieces}</span>`;
+                explanation = "直线剪绳：剪 n 刀，会得到 n+1 段。";
+
+            } else if (mode === 'loop') {
+                // Loop Rope
+                const cx = w / 2;
+                const cy = h / 2;
+                const r = Math.min(w, h) / 3;
+                pieces = cuts;
+                
+                // Draw segments
+                const anglePerCut = (Math.PI * 2) / cuts;
+                
+                for (let i = 0; i < cuts; i++) {
+                    const startAngle = i * anglePerCut;
+                    const endAngle = (i + 1) * anglePerCut - 0.1; // Small gap
+                    
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#d97706';
+                    ctx.arc(cx, cy, r, startAngle, endAngle);
+                    ctx.stroke();
+                    
+                    // Draw Scissors at the gap
+                    const cutAngle = endAngle + 0.05;
+                    const cutX = cx + r * Math.cos(cutAngle);
+                    const cutY = cy + r * Math.sin(cutAngle);
+                    drawScissors(cutX, cutY, cutAngle);
+
+                    // Label pieces
+                    const labelAngle = startAngle + anglePerCut/2;
+                    const lx = cx + (r + 30) * Math.cos(labelAngle);
+                    const ly = cy + (r + 30) * Math.sin(labelAngle);
+                    ctx.fillStyle = '#333';
+                    ctx.font = '16px Arial';
+                    ctx.fillText(i + 1, lx, ly);
+                }
+
+                formula = `段数 = 次数 = <span class="highlight">${pieces}</span>`;
+                explanation = "环形剪绳：封闭图形，剪 n 刀，会得到 n 段。";
+
+            } else if (mode === 'fold') {
+                // Folded Rope
+                // m folds = 2^m layers
+                const layers = Math.pow(2, folds);
+                const layerHeight = 30; // space between lines
+                const totalH = layers * layerHeight;
+                const startY = (h - totalH) / 2;
+                const margin = 100;
+                const ropeWidth = w - 2 * margin;
+                
+                ctx.strokeStyle = '#d97706';
+
+                // Draw folded strands
+                for (let i = 0; i < layers; i++) {
+                    const y = startY + i * layerHeight;
+                    ctx.beginPath();
+                    ctx.moveTo(margin, y);
+                    ctx.lineTo(margin + ropeWidth, y);
+                    ctx.stroke();
+                    
+                    // Connect ends to show folding
+                    if (i < layers - 1) {
+                        ctx.beginPath();
+                        const isRightConnect = (i % 2 === 0);
+                        const cx = isRightConnect ? margin + ropeWidth : margin;
+                        const r = layerHeight / 2;
+                        
+                        // Right connection: Top -> Right -> Bottom (CW)
+                        // Left connection: Top -> Left -> Bottom (CCW)
+                        ctx.arc(cx, y + r, r, 
+                                -Math.PI/2, 
+                                Math.PI/2, 
+                                !isRightConnect); 
+                        ctx.stroke();
+                    }
+                }
+
+                // Draw Cuts
+                // Assuming cuts are distributed evenly along the width
+                const cutSpacing = ropeWidth / (cuts + 1);
+                for (let c = 1; c <= cuts; c++) {
+                    const cx = margin + c * cutSpacing;
+                    
+                    // Draw dashed cut line
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.setLineDash([5, 5]);
+                    ctx.moveTo(cx, startY - 20);
+                    ctx.lineTo(cx, startY + totalH + 20);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    drawScissors(cx, startY - 25, -Math.PI/2);
+                }
+
+                // Calculation
+                // Total pieces = 2^m * k + 1 ?
+                // Let's check. 
+                // k cuts through 2^m strands.
+                // Each cut adds 2^m ends? No.
+                // If I have 1 strand, k cuts -> k+1 pieces.
+                // If I have L strands (disconnected), k cuts per strand -> L*(k+1) pieces.
+                // But they are connected.
+                // Each connection reduces the piece count by 1?
+                // Total segments in grid = Layers * (Cuts + 1).
+                // Number of U-turns = Layers - 1.
+                // Each U-turn connects two segments into one piece.
+                // So Total Pieces = [Layers * (Cuts + 1)] - [Layers - 1]
+                // = Layers * Cuts + Layers - Layers + 1
+                // = Layers * Cuts + 1.
+                // = 2^m * n + 1.
+                
+                pieces = layers * cuts + 1;
+                
+                formula = `段数 = 2^m × n + 1 = ${layers} × ${cuts} + 1 = <span class="highlight">${pieces}</span>`;
+                explanation = `折叠剪绳：<br>
+                               1. 折叠 ${folds} 次，绳子变成 ${layers} 层。<br>
+                               2. 每一刀切断 ${layers} 根绳子。<br>
+                               3. 共剪 ${cuts} 刀，相当于在 ${layers} 根绳子上各剪 ${cuts} 刀，产生 ${layers}×(${cuts}+1) 个线段。<br>
+                               4. 但有 ${layers}-1 个弯头把线段连起来了，所以减去 ${layers}-1。<br>
+                               5. 最终公式：<span class="highlight">2^m × n + 1</span>`;
+            }
+
+            document.getElementById('formulaDisplay').innerHTML = formula;
+            document.getElementById('explanationText').innerHTML = explanation;
+        }
+
+        function drawScissors(x, y, rotation = 0) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+            ctx.fillStyle = '#ef4444';
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('✂️', 0, 0);
+            ctx.restore();
+        }
+
+        // Init
+        resize();
+        updateMode();
+
+    </script>
+</body>
+</html>

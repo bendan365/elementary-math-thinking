@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小学奥数 - 鸡兔同笼多解法演示</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Microsoft YaHei', sans-serif;
+            background-color: #f0f8ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background-color: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            color: #ff6b6b;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin: 15px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        input {
+            padding: 8px;
+            border: 2px solid #4ecdc4;
+            border-radius: 5px;
+            width: 80px;
+            font-size: 16px;
+            text-align: center;
+        }
+        button {
+            background-color: #4ecdc4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin: 10px;
+        }
+        button:hover {
+            transform: scale(1.05);
+            background-color: #45b7af;
+        }
+        #result-area {
+            margin-top: 20px;
+            padding: 0;
+            border-radius: 10px;
+            background-color: #fff9c4;
+            display: none;
+            overflow: hidden; /* For tab content */
+        }
+        .result-header {
+            padding: 15px;
+            background-color: #fff176;
+            border-bottom: 1px solid #fdd835;
+        }
+        .visual {
+            font-size: 32px;
+            margin: 10px;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        
+        /* Tabs Styles */
+        .tabs {
+            display: flex;
+            background-color: #e0f7fa;
+            border-bottom: 2px solid #4ecdc4;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            background: none;
+            border: none;
+            border-radius: 0;
+            margin: 0;
+            color: #555;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .tab-btn:hover {
+            background-color: #b2ebf2;
+            transform: none;
+        }
+        .tab-btn.active {
+            background-color: #4ecdc4;
+            color: white;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            text-align: left;
+            animation: fadeIn 0.5s;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .step {
+            margin: 10px 0;
+            padding: 8px;
+            border-bottom: 1px dashed #ccc;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .step strong {
+            color: #ff6b6b;
+        }
+        .formula {
+            font-family: 'Courier New', monospace;
+            background: #eee;
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+        .method-title {
+            color: #009688;
+            border-bottom: 2px solid #009688;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+        }
+
+        /* Visualization Styles */
+        .visual-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: #fff;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        .animal-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 40px;
+            transition: all 0.5s;
+            position: relative;
+        }
+        .head {
+            width: 30px;
+            height: 30px;
+            background-color: #ffd700; /* Yellow for chicken default */
+            border-radius: 50%;
+            border: 2px solid #f39c12;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            z-index: 2;
+            position: relative;
+        }
+        .rabbit-head {
+            background-color: #fff; /* White for rabbit */
+            border-color: #bdc3c7;
+        }
+        .legs-container {
+            display: flex;
+            gap: 4px;
+            margin-top: -5px;
+            z-index: 1;
+        }
+        .leg {
+            width: 4px;
+            height: 15px;
+            background-color: #e67e22;
+            border-radius: 2px;
+        }
+        .leg-rabbit {
+            background-color: #95a5a6;
+        }
+        .leg-added {
+            background-color: #ff6b6b; /* Red for added legs */
+            animation: grow 0.5s ease-out;
+        }
+        .leg-removed {
+            opacity: 0.2;
+            background-color: #ccc;
+        }
+        .annotation {
+            font-size: 10px;
+            color: #7f8c8d;
+            margin-top: 2px;
+            text-align: center;
+        }
+        .group-label {
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+            color: #555;
+            margin: 10px 0 5px;
+            background: #eee;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        @keyframes grow {
+            from { height: 0; }
+            to { height: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐔 鸡兔同笼多种解法 🐰</h1>
+        <p>输入头和脚的总数，看看有多少只鸡和兔子！</p>
+        
+        <div class="input-group">
+            <label>总头数：</label>
+            <input type="number" id="heads" placeholder="例如: 8" min="1" value="8">
+            
+            <label>总脚数：</label>
+            <input type="number" id="feet" placeholder="例如: 26" min="1" value="26">
+        </div>
+
+        <button onclick="calculate()">开始计算</button>
+        <button onclick="reset()" style="background-color: #ff6b6b;">重置</button>
+
+        <div id="error" class="error"></div>
+        
+        <div id="result-area">
+            <div class="result-header">
+                <h3>🎉 计算结果 🎉</h3>
+                <p class="visual" id="final-result"></p>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="openTab('method1')">解法一：假设全是鸡</button>
+                <button class="tab-btn" onclick="openTab('method2')">解法二：假设全是兔</button>
+                <button class="tab-btn" onclick="openTab('method3')">解法三：抬腿法 (最妙)</button>
+                <button class="tab-btn" onclick="openTab('method4')">解法四：方程法</button>
+            </div>
+
+            <div id="method1" class="tab-content active"></div>
+            <div id="method2" class="tab-content"></div>
+            <div id="method3" class="tab-content"></div>
+            <div id="method4" class="tab-content"></div>
+        </div>
+    </div>
+
+    <script>
+        function calculate() {
+            const heads = parseInt(document.getElementById('heads').value);
+            const feet = parseInt(document.getElementById('feet').value);
+            const errorDiv = document.getElementById('error');
+            const resultArea = document.getElementById('result-area');
+            
+            errorDiv.innerHTML = '';
+            resultArea.style.display = 'none';
+
+            if (!heads || !feet) {
+                errorDiv.innerText = '请输入头和脚的数量！';
+                return;
+            }
+
+            // 检查数据是否合理
+            if (feet % 2 !== 0) {
+                errorDiv.innerText = '脚的数量必须是偶数哦！';
+                return;
+            }
+            if (feet < heads * 2 || feet > heads * 4) {
+                errorDiv.innerText = '这个头和脚的数量不太对劲，再检查一下吧！\n(全是鸡有 ' + (heads * 2) + ' 只脚，全是兔有 ' + (heads * 4) + ' 只脚)';
+                return;
+            }
+
+            // Core Logic
+            // Method 1: Assume all chickens
+            const m1_assumedFeet = heads * 2;
+            const m1_diffFeet = feet - m1_assumedFeet;
+            const rabbits = m1_diffFeet / 2;
+            const chickens = heads - rabbits;
+
+            // Display Result
+            document.getElementById('final-result').innerHTML = `🐔: ${chickens} 只 &nbsp;&nbsp; 🐰: ${rabbits} 只`;
+            
+            // Limit visualization count
+            const MAX_VISUAL = 50;
+            const showVisual = heads <= MAX_VISUAL;
+            const visualWarning = !showVisual ? '<p style="color:orange">(数量太多，仅展示文字推导)</p>' : '';
+
+            // --- Method 1: Assume all chickens ---
+            let html1 = '<h3 class="method-title">假设全是鸡 (基础假设法)</h3>';
+            html1 += `<div class="step">1. 假设笼子里全是鸡 🐔，每只鸡 2 只脚。<br>假设总脚数 = ${heads} × 2 = <strong>${m1_assumedFeet}</strong></div>`;
+            
+            if (showVisual) {
+                html1 += '<div class="group-label">第一步：给每只头画上 2 只脚</div>';
+                html1 += '<div class="visual-container">';
+                for(let i=0; i<heads; i++) {
+                    html1 += createAnimalHTML(false, 2, false); // chicken head, 2 legs
+                }
+                html1 += '</div>';
+            }
+
+            html1 += `<div class="step">2. 实际脚数比假设脚数多出了多少？<br>多出的脚 = ${feet} - ${m1_assumedFeet} = <strong>${m1_diffFeet}</strong></div>`;
+            html1 += `<div class="step">3. 为什么会多出来？因为每只兔子比鸡多 2 只脚。<br>每只差 = 4 - 2 = <strong>2</strong></div>`;
+            
+            if (showVisual) {
+                html1 += '<div class="group-label">第二步：把多出来的脚补上去 (每只补2脚)</div>';
+                html1 += '<div class="visual-container">';
+                // First render chickens (remain chickens)
+                for(let i=0; i<chickens; i++) {
+                    html1 += createAnimalHTML(false, 2, false);
+                }
+                // Then render rabbits (transformed from chickens)
+                for(let i=0; i<rabbits; i++) {
+                    html1 += createAnimalHTML(true, 2, true); // rabbit head, 2 base legs + 2 added legs
+                }
+                html1 += '</div>';
+            }
+
+            html1 += `<div class="step">4. 多出来的脚是因为把兔子算成了鸡，所以兔子的数量是：<br>兔子 = ${m1_diffFeet} ÷ 2 = <strong>${rabbits}</strong> (只)</div>`;
+            html1 += `<div class="step">5. 剩下的就是鸡：<br>鸡 = ${heads} - ${rabbits} = <strong>${chickens}</strong> (只)</div>`;
+            html1 += visualWarning;
+            document.getElementById('method1').innerHTML = html1;
+
+
+            // --- Method 2: Assume all rabbits ---
+            const m2_assumedFeet = heads * 4;
+            const m2_diffFeet = m2_assumedFeet - feet; 
+            let html2 = '<h3 class="method-title">假设全是兔 (反向假设法)</h3>';
+            html2 += `<div class="step">1. 假设笼子里全是兔子 🐰，每只兔子 4 只脚。<br>假设总脚数 = ${heads} × 4 = <strong>${m2_assumedFeet}</strong></div>`;
+            
+            if (showVisual) {
+                html2 += '<div class="group-label">第一步：给每只头画上 4 只脚</div>';
+                html2 += '<div class="visual-container">';
+                for(let i=0; i<heads; i++) {
+                    html2 += createAnimalHTML(true, 4, false); // rabbit head, 4 legs
+                }
+                html2 += '</div>';
+            }
+
+            html2 += `<div class="step">2. 假设的脚数比实际脚数多出了多少？<br>多算的脚 = ${m2_assumedFeet} - ${feet} = <strong>${m2_diffFeet}</strong></div>`;
+            
+            if (showVisual) {
+                html2 += '<div class="group-label">第二步：把多算的脚擦掉 (变成鸡)</div>';
+                html2 += '<div class="visual-container">';
+                // First render rabbits (real rabbits)
+                for(let i=0; i<rabbits; i++) {
+                    html2 += createAnimalHTML(true, 4, false);
+                }
+                // Then render chickens (transformed from rabbits)
+                for(let i=0; i<chickens; i++) {
+                    html2 += createAnimalHTML(false, 4, false, true); // chicken head, 4 legs (2 removed)
+                }
+                html2 += '</div>';
+            }
+
+            html2 += `<div class="step">3. 为什么会多算呢？因为把只有 2 只脚的鸡当成了 4 只脚的兔子。<br>每只多算了 = 4 - 2 = <strong>2</strong></div>`;
+            html2 += `<div class="step">4. 多算的脚是因为把鸡当成了兔子，所以鸡的数量是：<br>鸡 = ${m2_diffFeet} ÷ 2 = <strong>${chickens}</strong> (只)</div>`;
+            html2 += `<div class="step">5. 剩下的就是兔子：<br>兔子 = ${heads} - ${chickens} = <strong>${rabbits}</strong> (只)</div>`;
+            html2 += visualWarning;
+            document.getElementById('method2').innerHTML = html2;
+
+
+            // --- Method 3: Lifting Feet ---
+            const m3_halfFeet = feet / 2;
+            const m3_rabbits = m3_halfFeet - heads;
+            let html3 = '<h3 class="method-title">抬腿法 / 吹哨法 (趣味解法)</h3>';
+            html3 += `<div class="step">1. 想象训练员吹了一声哨子，命令所有动物抬起一半的脚！<br>(或者说：所有的鸡都金鸡独立，所有的兔子都抬起前脚)</div>`;
+            
+            if (showVisual) {
+                html3 += '<div class="group-label">哨声响起：全体抬起一半脚！</div>';
+                html3 += '<div class="visual-container">';
+                // Render Chickens (1 leg)
+                for(let i=0; i<chickens; i++) {
+                    html3 += createAnimalHTML(false, 1, false);
+                }
+                // Render Rabbits (2 legs)
+                for(let i=0; i<rabbits; i++) {
+                    html3 += createAnimalHTML(true, 2, false);
+                }
+                html3 += '</div>';
+            }
+
+            html3 += `<div class="step">2. 此时地上的总脚数变成了一半：<br>地上脚数 = ${feet} ÷ 2 = <strong>${m3_halfFeet}</strong></div>`;
+            html3 += `<div class="step">3. 现在，每只鸡剩下 1 只脚站立，每只兔子剩下 2 只脚站立。<br>这就相当于：<strong>每只动物都有 1 只"基本脚"，而兔子多 1 只脚。</strong></div>`;
+            html3 += `<div class="step">4. 如果我们把每只动物的 1 只"基本脚"减掉 (就是减去头数)：<br>剩下的脚 = ${m3_halfFeet} - ${heads} = <strong>${m3_rabbits}</strong></div>`;
+            
+            if (showVisual) {
+                html3 += '<div class="group-label">减去头数：每只再减掉 1 只脚</div>';
+                html3 += '<div class="visual-container">';
+                // Chickens (0 legs left on ground - conceptually)
+                for(let i=0; i<chickens; i++) {
+                    html3 += `<div class="animal-box" style="opacity:0.3"><div class="head">🐔</div><div class="annotation">倒下</div></div>`;
+                }
+                // Rabbits (1 leg left)
+                for(let i=0; i<rabbits; i++) {
+                    html3 += createAnimalHTML(true, 1, false);
+                }
+                html3 += '</div>';
+                html3 += '<div class="step">剩下还没倒下的，就是兔子啦！(每只兔子还剩1只脚)</div>';
+            }
+
+            html3 += `<div class="step">5. 剩下的这些脚，全是兔子多出来的脚！因为每只兔子多 1 只脚，所以这就是兔子的数量。<br><strong>兔子 = ${m3_rabbits} (只)</strong></div>`;
+            html3 += `<div class="step">6. 最后算出鸡的数量：<br>鸡 = ${heads} - ${rabbits} = <strong>${chickens}</strong> (只)</div>`;
+            html3 += visualWarning;
+            document.getElementById('method3').innerHTML = html3;
+
+
+            // --- Method 4: Algebra (No visual changes) ---
+            let html4 = '<h3 class="method-title">方程法 (高年级通用法)</h3>';
+            html4 += `<div class="step">解：设鸡有 <span class="formula">x</span> 只，兔子有 <span class="formula">y</span> 只。</div>`;
+            html4 += `<div class="step">根据题意列出方程组：<br>
+                        ① <span class="formula">x + y = ${heads}</span> (头总数)<br>
+                        ② <span class="formula">2x + 4y = ${feet}</span> (脚总数)</div>`;
+            html4 += `<div class="step">将方程 ① 变形得：<br>
+                        <span class="formula">x = ${heads} - y</span> ③</div>`;
+            html4 += `<div class="step">将 ③ 代入 ② 中：<br>
+                        <span class="formula">2(${heads} - y) + 4y = ${feet}</span><br>
+                        <span class="formula">${heads * 2} - 2y + 4y = ${feet}</span><br>
+                        <span class="formula">2y = ${feet} - ${heads * 2}</span><br>
+                        <span class="formula">2y = ${feet - heads * 2}</span><br>
+                        <span class="formula">y = ${rabbits}</span></div>`;
+            html4 += `<div class="step">所以，兔子有 <strong>${rabbits}</strong> 只。</div>`;
+            html4 += `<div class="step">将 y 值代入 ③：<br>
+                        <span class="formula">x = ${heads} - ${rabbits} = ${chickens}</span><br>
+                        所以，鸡有 <strong>${chickens}</strong> 只。</div>`;
+            document.getElementById('method4').innerHTML = html4;
+
+            resultArea.style.display = 'block';
+        }
+
+        // Helper to create visual HTML
+        function createAnimalHTML(isRabbitHead, legsCount, isAddedLegs, isRemovedLegs) {
+            let headClass = isRabbitHead ? 'head rabbit-head' : 'head';
+            let headContent = isRabbitHead ? '🐰' : '🐔';
+            
+            let legsHTML = '';
+            
+            // For Method 1 (Adding legs)
+            if (isAddedLegs) {
+                // Base 2 legs
+                legsHTML += '<div class="leg"></div><div class="leg"></div>';
+                // Added 2 legs
+                legsHTML += '<div class="leg leg-added"></div><div class="leg leg-added"></div>';
+            } 
+            // For Method 2 (Removing legs)
+            else if (isRemovedLegs) {
+                // 2 normal legs
+                legsHTML += '<div class="leg"></div><div class="leg"></div>';
+                // 2 removed legs
+                legsHTML += '<div class="leg leg-removed"></div><div class="leg leg-removed"></div>';
+            }
+            // Standard leg count
+            else {
+                for(let i=0; i<legsCount; i++) {
+                    legsHTML += `<div class="leg ${isRabbitHead ? 'leg-rabbit' : ''}"></div>`;
+                }
+            }
+
+            return `
+                <div class="animal-box">
+                    <div class="${headClass}">${headContent}</div>
+                    <div class="legs-container">
+                        ${legsHTML}
+                    </div>
+                </div>
+            `;
+        }
+
+        function reset() {
+            document.getElementById('heads').value = '';
+            document.getElementById('feet').value = '';
+            document.getElementById('error').innerText = '';
+            document.getElementById('result-area').style.display = 'none';
+        }
+
+        window.openTab = function(methodName) {
+            const contents = document.getElementsByClassName('tab-content');
+            for (let content of contents) {
+                content.style.display = 'none';
+                content.classList.remove('active');
+            }
+            
+            const selectedContent = document.getElementById(methodName);
+            selectedContent.style.display = 'block';
+            setTimeout(() => selectedContent.classList.add('active'), 10);
+
+            const buttons = document.getElementsByClassName('tab-btn');
+            for (let btn of buttons) {
+                btn.classList.remove('active');
+                if (btn.getAttribute('onclick').includes(methodName)) {
+                    btn.classList.add('active');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

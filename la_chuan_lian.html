@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拉窗帘模型演示 - 三角形同底等高面积相等</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .desc {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+        }
+        .info-panel {
+            background-color: #eef2ff;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: left;
+            margin-top: 20px;
+            border: 1px solid #dbeafe;
+        }
+        .formula {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2563eb;
+            margin: 10px 0;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            align-items: center;
+        }
+        input[type="range"] {
+            width: 300px;
+        }
+        .highlight {
+            color: #dc2626;
+            font-weight: bold;
+        }
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>小学数学“拉窗帘模型”演示</h1>
+    <div class="desc">拖动滑块或直接点击上方平行线，移动顶点 A，观察面积变化。</div>
+
+    <div class="container" id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="controls">
+        <label for="vertexSlider">移动顶点 A：</label>
+        <input type="range" id="vertexSlider" min="0" max="100" value="50">
+        <button class="btn" id="animBtn">自动演示</button>
+    </div>
+
+    <div class="info-panel">
+        <h3>观察结果：</h3>
+        <p>1. 三角形的底边 <span class="highlight">BC</span> 长度固定为：<span id="baseVal">200</span> 像素</p>
+        <p>2. 平行线间的垂直距离（高 <span class="highlight">h</span>）固定为：<span id="heightVal">150</span> 像素</p>
+        <div class="formula">
+            面积 = 底 × 高 ÷ 2 = <span id="areaVal">15000</span>
+        </div>
+        <p><strong>结论：</strong> 无论顶点 A 怎么移动，只要在平行线上，三角形面积始终<span class="highlight">保持不变</span>。</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+        const slider = document.getElementById('vertexSlider');
+        const animBtn = document.getElementById('animBtn');
+        
+        // Configuration
+        let width, height;
+        const padding = 50;
+        const lineTopY = 100;
+        const lineBottomY = 300;
+        const triangleBaseWidth = 200;
+        
+        // Triangle state
+        let vertexX = 0; // Relative to canvas width (0-100 range from slider)
+        let isAnimating = false;
+        let animationId;
+        let animDirection = 1;
+        
+        function resize() {
+            width = container.clientWidth;
+            height = container.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+            draw();
+        }
+
+        window.addEventListener('resize', resize);
+        
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw grid (optional background)
+            drawGrid();
+
+            // Calculate positions
+            const centerX = width / 2;
+            const baseLeftX = centerX - triangleBaseWidth / 2;
+            const baseRightX = centerX + triangleBaseWidth / 2;
+            
+            // Map slider value (0-100) to actual X position on top line
+            // Allow some margin outside the base width for better visualization
+            const rangeWidth = width - 100; 
+            const currentVertexX = 50 + (slider.value / 100) * rangeWidth;
+            
+            // 1. Draw Parallel Lines
+            ctx.beginPath();
+            ctx.moveTo(0, lineTopY);
+            ctx.lineTo(width, lineTopY);
+            ctx.strokeStyle = '#3b82f6'; // Blue
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.beginPath();
+            ctx.moveTo(0, lineBottomY);
+            ctx.lineTo(width, lineBottomY);
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Labels for lines
+            ctx.fillStyle = '#3b82f6';
+            ctx.font = '14px Arial';
+            ctx.fillText('顶点所在直线 L1 (窗帘轨道)', 10, lineTopY - 10);
+            ctx.fillStyle = '#666';
+            ctx.fillText('底边所在直线 L2', 10, lineBottomY + 25);
+
+            // 2. Draw Triangle
+            ctx.beginPath();
+            ctx.moveTo(currentVertexX, lineTopY); // A
+            ctx.lineTo(baseRightX, lineBottomY);  // C
+            ctx.lineTo(baseLeftX, lineBottomY);   // B
+            ctx.closePath();
+            
+            // Fill
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.2)'; // Red with opacity
+            ctx.fill();
+            
+            // Stroke
+            ctx.strokeStyle = '#ef4444'; // Red
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // 3. Draw Height (dashed line)
+            ctx.beginPath();
+            ctx.moveTo(currentVertexX, lineTopY);
+            ctx.lineTo(currentVertexX, lineBottomY);
+            ctx.strokeStyle = '#10b981'; // Green
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 4. Draw Points and Labels
+            drawPoint(currentVertexX, lineTopY, 'A');
+            drawPoint(baseLeftX, lineBottomY, 'B');
+            drawPoint(baseRightX, lineBottomY, 'C');
+
+            // Label Height
+            ctx.fillStyle = '#10b981';
+            ctx.fillText('h', currentVertexX + 5, (lineTopY + lineBottomY) / 2);
+
+            // Update Info Panel
+            const h = lineBottomY - lineTopY;
+            const area = 0.5 * triangleBaseWidth * h;
+            
+            document.getElementById('baseVal').textContent = triangleBaseWidth;
+            document.getElementById('heightVal').textContent = h;
+            document.getElementById('areaVal').textContent = area;
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = '#f0f0f0';
+            ctx.lineWidth = 1;
+            
+            for(let x = 0; x < width; x += 20) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+            for(let y = 0; y < height; y += 20) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+        }
+
+        function drawPoint(x, y, label) {
+            ctx.beginPath();
+            ctx.arc(x, y, 6, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillText(label, x - 5, y - 15);
+        }
+
+        // Interactivity
+        slider.addEventListener('input', () => {
+            if(isAnimating) stopAnimation();
+            draw();
+        });
+
+        // Click on canvas to move vertex
+        canvas.addEventListener('mousedown', (e) => {
+            if(isAnimating) stopAnimation();
+            updateVertexFromMouse(e);
+            
+            // Add drag listener
+            canvas.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        });
+
+        function onMouseMove(e) {
+            updateVertexFromMouse(e);
+        }
+
+        function onMouseUp() {
+            canvas.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        }
+
+        function updateVertexFromMouse(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            
+            // Convert x back to slider value (0-100)
+            const rangeWidth = width - 100;
+            let val = ((x - 50) / rangeWidth) * 100;
+            
+            // Clamp
+            val = Math.max(0, Math.min(100, val));
+            
+            slider.value = val;
+            draw();
+        }
+
+        // Animation Logic
+        function animate() {
+            let val = parseFloat(slider.value);
+            
+            if (val >= 100) animDirection = -1;
+            if (val <= 0) animDirection = 1;
+            
+            val += 0.5 * animDirection;
+            slider.value = val;
+            draw();
+            
+            animationId = requestAnimationFrame(animate);
+        }
+
+        function startAnimation() {
+            isAnimating = true;
+            animBtn.textContent = "停止演示";
+            animBtn.style.backgroundColor = "#dc2626"; // Red color for stop
+            animate();
+        }
+
+        function stopAnimation() {
+            isAnimating = false;
+            animBtn.textContent = "自动演示";
+            animBtn.style.backgroundColor = "#2563eb"; // Blue color
+            cancelAnimationFrame(animationId);
+        }
+
+        animBtn.addEventListener('click', () => {
+            if (isAnimating) {
+                stopAnimation();
+            } else {
+                startAnimation();
+            }
+        });
+
+        // Initialize
+        resize();
+        
+    </script>
+</body>
+</html>

@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行程追及问题可视化演示</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .desc {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .input-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        .scenario-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 80px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+        .btn-reset {
+            background-color: #9ca3af;
+        }
+        .btn-reset:hover {
+            background-color: #6b7280;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .info-panel {
+            background-color: #eef2ff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: left;
+            margin-top: 20px;
+            border: 1px solid #dbeafe;
+        }
+        .formula-box {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #2563eb;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        .highlight { color: #dc2626; font-weight: bold; }
+        .highlight-blue { color: #2563eb; font-weight: bold; }
+        .step-explanation {
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 10px;
+            font-weight: bold;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🏃 行程追及问题可视化 🏃</h1>
+    <div class="desc">输入起始距离和两人的速度，观察追及的过程和规律。</div>
+
+    <div class="input-panel">
+        <div class="scenario-row">
+            <div class="input-group">
+                起始距离 <input type="number" id="distanceDiff" value="200" min="10"> 米
+            </div>
+        </div>
+        <div class="scenario-row">
+            <div class="input-group">
+                追赶者(快) <input type="number" id="speedFast" value="80" min="1"> 米/分
+            </div>
+            <div class="input-group">
+                被追者(慢) <input type="number" id="speedSlow" value="60" min="1"> 米/分
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn" onclick="startSimulation()">🚀 开始演示</button>
+            <button class="btn btn-reset" onclick="resetSimulation()">🔄 重置</button>
+        </div>
+
+        <div class="stats">
+            <span id="timerDisplay">⏱️ 时间: 0.0 分</span>
+            <span id="statusDisplay">状态: 准备就绪</span>
+        </div>
+    </div>
+
+    <div class="container" id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="info-panel" id="resultPanel" style="display:none;">
+        <h3>📊 分析结果：</h3>
+        <div class="formula-box" id="formulaDisplay">
+            <!-- Formula will be injected here -->
+        </div>
+        <div class="step-explanation" id="explanationText">
+            <!-- Explanation will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        // State
+        let distDiff = 200;
+        let vFast = 80;
+        let vSlow = 60;
+        
+        let currentTime = 0;
+        let catchUpTime = 0;
+        let isRunning = false;
+        let animationId = null;
+        let isFinished = false;
+
+        // Visual constants
+        const margin = 50;
+        const groundY = 200;
+
+        function resize() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            draw();
+        }
+
+        window.addEventListener('resize', resize);
+
+        function resetSimulation() {
+            isRunning = false;
+            isFinished = false;
+            cancelAnimationFrame(animationId);
+            currentTime = 0;
+            
+            // Reload inputs
+            distDiff = parseFloat(document.getElementById('distanceDiff').value);
+            vFast = parseFloat(document.getElementById('speedFast').value);
+            vSlow = parseFloat(document.getElementById('speedSlow').value);
+            
+            if (vFast > vSlow) {
+                catchUpTime = distDiff / (vFast - vSlow);
+            } else {
+                catchUpTime = 0; // Invalid
+            }
+            
+            document.getElementById('timerDisplay').innerText = "⏱️ 时间: 0.0 分";
+            document.getElementById('statusDisplay').innerText = "状态: 准备就绪";
+            document.getElementById('resultPanel').style.display = 'none';
+            
+            draw();
+        }
+
+        function startSimulation() {
+            if (isRunning) return;
+            
+            // Get inputs
+            distDiff = parseFloat(document.getElementById('distanceDiff').value);
+            vFast = parseFloat(document.getElementById('speedFast').value);
+            vSlow = parseFloat(document.getElementById('speedSlow').value);
+
+            if (isNaN(distDiff) || isNaN(vFast) || isNaN(vSlow) || distDiff <= 0 || vFast <= 0 || vSlow <= 0) {
+                alert("请输入有效的正数值！");
+                return;
+            }
+
+            if (vFast <= vSlow) {
+                alert("追赶者的速度必须大于被追者，否则永远追不上！");
+                return;
+            }
+
+            catchUpTime = distDiff / (vFast - vSlow);
+            
+            if (isFinished) {
+                currentTime = 0;
+                isFinished = false;
+            }
+
+            isRunning = true;
+            document.getElementById('statusDisplay').innerText = "状态: 追击中...";
+            animate();
+            
+            showAnalysis();
+        }
+
+        function showAnalysis() {
+            const panel = document.getElementById('resultPanel');
+            panel.style.display = 'block';
+            
+            const speedDiff = vFast - vSlow;
+            const totalDistFast = vFast * catchUpTime;
+            const totalDistSlow = vSlow * catchUpTime;
+
+            document.getElementById('formulaDisplay').innerHTML = `
+                追及时间 = 路程差 ÷ 速度差<br>
+                ${catchUpTime.toFixed(2)} (分) = ${distDiff} ÷ (${vFast} - ${vSlow})
+            `;
+
+            document.getElementById('explanationText').innerHTML = `
+                <strong>逻辑解析：</strong><br>
+                1. 两人同时出发，同向而行。<br>
+                2. 追赶者比被追者快，每经过 1 分钟，距离缩短（${vFast} - ${vSlow}）= <span class="highlight-blue">${speedDiff}</span> 米。<br>
+                3. 要追上 ${distDiff} 米的差距，需要的时间就是：${distDiff} ÷ ${speedDiff} = <span class="highlight">${catchUpTime.toFixed(2)}</span> 分钟。<br>
+                4. 追上时，追赶者跑了 ${totalDistFast.toFixed(1)} 米，被追者跑了 ${totalDistSlow.toFixed(1)} 米。
+            `;
+        }
+
+        function animate() {
+            if (!isRunning) return;
+
+            // Animation duration ~4s
+            const realDurationSecs = 4; 
+            const timeStep = catchUpTime / (realDurationSecs * 60);
+            
+            currentTime += timeStep;
+
+            if (currentTime >= catchUpTime) {
+                currentTime = catchUpTime;
+                isRunning = false;
+                isFinished = true;
+                document.getElementById('statusDisplay').innerText = "状态: 已追上 ✅";
+            }
+
+            document.getElementById('timerDisplay').innerText = `⏱️ 时间: ${currentTime.toFixed(2)} 分`;
+            draw();
+
+            if (isRunning) {
+                animationId = requestAnimationFrame(animate);
+            }
+        }
+
+        function draw() {
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Scale calculations
+            // We need to show the full distance the chaser runs
+            const totalRunDist = vFast * catchUpTime;
+            // Add some padding
+            const maxDist = totalRunDist * 1.1; 
+            // Scale: pixels per meter
+            const scale = (w - 2 * margin) / maxDist;
+            
+            // Positions (meters from start of Chaser)
+            // Chaser starts at 0
+            const distFast = vFast * currentTime;
+            // Leader starts at distDiff
+            const distSlow = distDiff + vSlow * currentTime;
+            
+            const posFast_screen = margin + distFast * scale;
+            const posSlow_screen = margin + distSlow * scale;
+
+            // 1. Draw Road
+            ctx.beginPath();
+            ctx.moveTo(margin, groundY);
+            ctx.lineTo(w - margin, groundY);
+            ctx.strokeStyle = '#aaa';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Draw start ticks
+            // Start of Chaser
+            drawTick(margin, '起点(追)');
+            // Start of Leader
+            drawTick(margin + distDiff * scale, '起点(被追)');
+            
+            // Draw Distance Difference Brace (Initial)
+            if (currentTime < catchUpTime) {
+                drawBrace(margin, margin + distDiff * scale, groundY + 40, `初始差距 ${distDiff}米`);
+            }
+
+            // 2. Draw Meeting Point Flag
+            const meetX = margin + (vFast * catchUpTime) * scale;
+            drawFlag(meetX, groundY, '🏁');
+
+            // 3. Draw Chaser
+            drawPerson(posFast_screen, groundY, '追赶者', '#ef4444', distFast, -40); // Red
+            
+            // 4. Draw Leader
+            drawPerson(posSlow_screen, groundY, '被追者', '#3b82f6', distSlow - distDiff, -40); // Blue, dist shown is run dist
+
+            // 5. Draw Traces
+            // Trace Fast
+            ctx.beginPath();
+            ctx.moveTo(margin, groundY - 5);
+            ctx.lineTo(posFast_screen, groundY - 5);
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 3]);
+            ctx.stroke();
+            
+            // Trace Slow
+            ctx.beginPath();
+            ctx.moveTo(margin + distDiff * scale, groundY - 5);
+            ctx.lineTo(posSlow_screen, groundY - 5);
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 6. Current Gap Label
+            if (isRunning && currentTime < catchUpTime) {
+                const currentGap = distDiff - (vFast - vSlow) * currentTime;
+                if (currentGap > 1) { // Only show if gap is significant
+                    const gapX = (posFast_screen + posSlow_screen) / 2;
+                    ctx.fillStyle = '#666';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`相距 ${currentGap.toFixed(1)}米`, gapX, groundY - 60);
+                    
+                    // Small arrow line between them
+                    ctx.beginPath();
+                    ctx.moveTo(posFast_screen + 10, groundY - 55);
+                    ctx.lineTo(posSlow_screen - 10, groundY - 55);
+                    ctx.strokeStyle = '#999';
+                    ctx.setLineDash([2, 2]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+
+            // 7. Collision / Catch up
+            if (isFinished) {
+                ctx.fillStyle = '#fbbf24';
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.arc(meetX, groundY - 20, 30, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 16px Arial';
+                ctx.fillText('追上了!', meetX, groundY - 60);
+            }
+        }
+
+        function drawTick(x, label) {
+            ctx.beginPath();
+            ctx.moveTo(x, groundY - 10);
+            ctx.lineTo(x, groundY + 10);
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#333';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, x, groundY + 25);
+        }
+        
+        function drawBrace(x1, x2, y, label) {
+            ctx.beginPath();
+            ctx.moveTo(x1, y - 5);
+            ctx.lineTo(x1, y);
+            ctx.lineTo(x2, y);
+            ctx.lineTo(x2, y - 5);
+            ctx.strokeStyle = '#666';
+            ctx.stroke();
+            
+            ctx.fillStyle = '#666';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, (x1 + x2)/2, y + 15);
+        }
+
+        function drawPerson(x, y, label, color, runDist, yOffset) {
+            ctx.save();
+            ctx.translate(x, y);
+            
+            // Person
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(0, -20, 10, 0, Math.PI*2); 
+            ctx.fill();
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -10);
+            ctx.lineTo(0, 0);
+            ctx.stroke();
+
+            // Label
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText(label, 0, -35);
+            
+            // Run Dist
+            ctx.fillStyle = color;
+            ctx.font = '10px Arial';
+            ctx.fillText(`跑了${runDist.toFixed(0)}米`, 0, -50);
+
+            ctx.restore();
+        }
+
+        function drawFlag(x, y, icon) {
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(icon, x, y - 5);
+        }
+
+        // Init
+        resize();
+        resetSimulation();
+    </script>
+</body>
+</html>

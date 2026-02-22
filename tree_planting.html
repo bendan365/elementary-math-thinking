@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小学数学植树问题可视化演示</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f0f7ff;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .desc {
+            color: #555;
+            margin-bottom: 25px;
+            font-size: 16px;
+        }
+        .control-panel {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .mode-selection {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .mode-btn {
+            padding: 10px 20px;
+            border: 2px solid #3b82f6;
+            background-color: #fff;
+            color: #3b82f6;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        .mode-btn:hover {
+            background-color: #eff6ff;
+        }
+        .mode-btn.active {
+            background-color: #3b82f6;
+            color: white;
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+        }
+        .input-row {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+        }
+        input[type="number"] {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            width: 80px;
+            font-size: 16px;
+            text-align: center;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            background-color: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .result-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 5px solid #10b981;
+            text-align: left;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .formula-title {
+            font-weight: bold;
+            font-size: 18px;
+            color: #10b981;
+            margin-bottom: 10px;
+        }
+        .formula-content {
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            background-color: #f0fdf4;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        .explanation {
+            line-height: 1.6;
+            color: #4b5563;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            margin-right: 5px;
+        }
+        .badge-tree { background-color: #10b981; }
+        .badge-gap { background-color: #f59e0b; }
+    </style>
+</head>
+<body>
+
+    <h1>🌳 植树问题可视化演示 🌳</h1>
+    <div class="desc">选择不同的植树场景，直观理解“树”与“间隔”的数量关系。</div>
+
+    <div class="control-panel">
+        <div class="mode-selection">
+            <button class="mode-btn active" onclick="setMode('both')">两端都栽</button>
+            <button class="mode-btn" onclick="setMode('one')">只栽一端</button>
+            <button class="mode-btn" onclick="setMode('none')">两端都不栽</button>
+            <button class="mode-btn" onclick="setMode('circle')">封闭图形(环形)</button>
+        </div>
+
+        <div class="input-row">
+            <div class="input-group">
+                总路程 <input type="number" id="totalLength" value="20" min="10" max="200" onchange="update()"> 米
+            </div>
+            <div class="input-group">
+                间隔长度 <input type="number" id="gapLength" value="5" min="1" max="50" onchange="update()"> 米
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="result-panel">
+        <div class="formula-title" id="modeTitle">两端都栽</div>
+        <div id="formulaDisplay" class="formula-content">树的棵数 = 间隔数 + 1</div>
+        <div class="explanation" id="explanationText">
+            <!-- Content injected via JS -->
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        let mode = 'both'; // both, one, none, circle
+        let totalLength = 20;
+        let gapLength = 5;
+        let gapCount = 0;
+        let treeCount = 0;
+
+        function resize() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            // Redraw if needed
+            if (totalLength > 0) draw();
+        }
+
+        window.addEventListener('resize', resize);
+
+        function setMode(newMode) {
+            mode = newMode;
+            // Update active button state
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            // Find the button that called this function - tricky if not passed directly
+            // Better to just loop and match onclick value or use event.target
+            // But event is not passed here directly in onclick="setMode('...')"
+            // Let's rely on update() re-rendering text
+            
+            // Re-select active class based on mode
+            const btns = document.querySelectorAll('.mode-btn');
+            btns.forEach(btn => {
+                 if (btn.getAttribute('onclick').includes(`'${newMode}'`)) {
+                     btn.classList.add('active');
+                 }
+            });
+            
+            update();
+        }
+
+        function update() {
+            totalLength = parseFloat(document.getElementById('totalLength').value);
+            gapLength = parseFloat(document.getElementById('gapLength').value);
+
+            if (isNaN(totalLength) || isNaN(gapLength) || totalLength <= 0 || gapLength <= 0) return;
+
+            // Ensure gap is not larger than total
+            if (gapLength > totalLength) {
+                gapLength = totalLength;
+                document.getElementById('gapLength').value = gapLength;
+            }
+
+            gapCount = Math.floor(totalLength / gapLength);
+            
+            // Logic for tree count based on mode
+            switch(mode) {
+                case 'both':
+                    treeCount = gapCount + 1;
+                    break;
+                case 'one':
+                    treeCount = gapCount;
+                    break;
+                case 'none':
+                    treeCount = gapCount - 1;
+                    if (treeCount < 0) treeCount = 0;
+                    break;
+                case 'circle':
+                    treeCount = gapCount;
+                    break;
+            }
+
+            updateInfo();
+            draw();
+        }
+
+        function updateInfo() {
+            const titleEl = document.getElementById('modeTitle');
+            const formulaEl = document.getElementById('formulaDisplay');
+            const expEl = document.getElementById('explanationText');
+
+            let formulaStr = "";
+            let logicStr = "";
+
+            const gapsInfo = `<span class="badge badge-gap">间隔数</span> = 总长 ÷ 间隔 = ${totalLength} ÷ ${gapLength} = <strong>${gapCount}</strong>`;
+
+            switch(mode) {
+                case 'both':
+                    titleEl.innerText = "场景：两端都栽 (非封闭)";
+                    formulaStr = `棵数 = 间隔数 + 1 = ${treeCount}`;
+                    logicStr = `
+                        <div>${gapsInfo}</div>
+                        <div><strong>逻辑：</strong>两头都要种树，树的数量比间隔多 1。</div>
+                        <div><strong>比喻：</strong>就像 5 根手指有 4 个指缝，手指(树)总比指缝(间隔)多 1。</div>
+                    `;
+                    break;
+                case 'one':
+                    titleEl.innerText = "场景：只栽一端 (非封闭)";
+                    formulaStr = `棵数 = 间隔数 = ${treeCount}`;
+                    logicStr = `
+                        <div>${gapsInfo}</div>
+                        <div><strong>逻辑：</strong>起点种树，终点不种。每一棵树“携带”身后一个间隔。</div>
+                        <div><strong>比喻：</strong>就像排队报数，一人对应一个位置，数量相等。</div>
+                    `;
+                    break;
+                case 'none':
+                    titleEl.innerText = "场景：两端都不栽 (非封闭)";
+                    formulaStr = `棵数 = 间隔数 - 1 = ${treeCount}`;
+                    logicStr = `
+                        <div>${gapsInfo}</div>
+                        <div><strong>逻辑：</strong>两头都不种树，相比“两端都栽”少了首尾两棵。</div>
+                        <div><strong>比喻：</strong>锯木头问题。锯成 5 段(间隔)只需要锯 4 次(树/锯口)。</div>
+                    `;
+                    break;
+                case 'circle':
+                    titleEl.innerText = "场景：封闭图形 (环形)";
+                    formulaStr = `棵数 = 间隔数 = ${treeCount}`;
+                    logicStr = `
+                        <div>${gapsInfo}</div>
+                        <div><strong>逻辑：</strong>首尾相接，第一棵树也是最后一棵树的起点。</div>
+                        <div><strong>比喻：</strong>围成一圈，树和间隔一一对应。</div>
+                    `;
+                    break;
+            }
+
+            formulaEl.innerHTML = formulaStr;
+            expEl.innerHTML = logicStr;
+        }
+
+        function draw() {
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            if (mode === 'circle') {
+                drawCircleMode(w, h);
+            } else {
+                drawLineMode(w, h);
+            }
+        }
+
+        function drawLineMode(w, h) {
+            const margin = 50;
+            const groundY = h / 2 + 50;
+            const availableWidth = w - 2 * margin;
+            
+            // Draw Ground Line
+            ctx.beginPath();
+            ctx.moveTo(margin, groundY);
+            ctx.lineTo(w - margin, groundY);
+            ctx.strokeStyle = '#8d6e63';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Total length labels
+            ctx.beginPath();
+            ctx.moveTo(margin, groundY + 40);
+            ctx.lineTo(w - margin, groundY + 40);
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            // Arrows
+            ctx.moveTo(margin, groundY + 35); ctx.lineTo(margin, groundY + 45);
+            ctx.moveTo(w - margin, groundY + 35); ctx.lineTo(w - margin, groundY + 45);
+            ctx.stroke();
+            
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`总长 ${totalLength} 米`, w/2, groundY + 60);
+
+            // Draw Trees
+            // Number of visual segments = gapCount
+            const segmentWidth = availableWidth / gapCount;
+
+            for (let i = 0; i <= gapCount; i++) {
+                const x = margin + i * segmentWidth;
+                
+                // Determine if tree should be drawn
+                let shouldPlant = false;
+                if (mode === 'both') {
+                    shouldPlant = true;
+                } else if (mode === 'one') {
+                    // Usually "One End" means start yes, end no.
+                    if (i < gapCount) shouldPlant = true;
+                } else if (mode === 'none') {
+                    if (i > 0 && i < gapCount) shouldPlant = true;
+                }
+
+                if (shouldPlant) {
+                    drawTree(x, groundY, i + 1);
+                } else {
+                    drawHole(x, groundY);
+                }
+                
+                // Draw gap dimension
+                if (i < gapCount) {
+                    drawGapLabel(x, x + segmentWidth, groundY - 10);
+                }
+            }
+        }
+
+        function drawCircleMode(w, h) {
+            const cx = w / 2;
+            const cy = h / 2 - 20;
+            // Ensure radius is positive
+            let r = Math.min(w, h) / 2 - 80;
+            if (r < 10) r = 10;
+            
+            // Draw Circle
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.strokeStyle = '#8d6e63';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            // Center text
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`周长 ${totalLength} 米`, cx, cy);
+            
+            // Draw Trees
+            const angleStep = (Math.PI * 2) / gapCount;
+            
+            for (let i = 0; i < gapCount; i++) {
+                // Start from top (-PI/2)
+                const angle = -Math.PI / 2 + i * angleStep;
+                const x = cx + r * Math.cos(angle);
+                const y = cy + r * Math.sin(angle);
+                
+                // Draw tree
+                // Rotate tree to point outward? No, keep upright is simpler.
+                // Just need to make sure base is ON the circle.
+                // drawTree assumes (x,y) is base center.
+                drawTree(x, y, i + 1); 
+                
+                // Calculate next tree position for gap label
+                const nextAngle = -Math.PI / 2 + (i + 1) * angleStep;
+                
+                // Draw gap arc line for ALL gaps if not too crowded
+                if (gapCount <= 20) {
+                     ctx.beginPath();
+                     ctx.arc(cx, cy, r + 15, angle, nextAngle);
+                     ctx.strokeStyle = '#f59e0b';
+                     ctx.lineWidth = 2;
+                     ctx.stroke();
+                     
+                     // Draw labels if very few trees
+                     if (gapCount <= 8) {
+                        const midAngle = (angle + nextAngle) / 2;
+                        const labelR = r + 30;
+                        const lx = cx + labelR * Math.cos(midAngle);
+                        const ly = cy + labelR * Math.sin(midAngle);
+                        
+                        ctx.fillStyle = '#f59e0b';
+                        ctx.font = '12px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(`${gapLength}m`, lx, ly);
+                     }
+                }
+            }
+            
+            // If many trees, only label the first gap to avoid clutter
+            if (gapCount > 8) {
+                 const angle = -Math.PI / 2;
+                 const nextAngle = -Math.PI / 2 + angleStep;
+                 const midAngle = (angle + nextAngle) / 2;
+                 const labelR = r + 30;
+                 const lx = cx + labelR * Math.cos(midAngle);
+                 const ly = cy + labelR * Math.sin(midAngle);
+                 
+                 ctx.fillStyle = '#f59e0b';
+                 ctx.font = '12px Arial';
+                 ctx.textAlign = 'center';
+                 ctx.textBaseline = 'middle';
+                 ctx.fillText(`${gapLength}m`, lx, ly);
+                 
+                 // Highlight the first gap arc if not drawn above (e.g. gapCount > 20)
+                 if (gapCount > 20) {
+                     ctx.beginPath();
+                     ctx.arc(cx, cy, r + 15, angle, nextAngle);
+                     ctx.strokeStyle = '#f59e0b';
+                     ctx.lineWidth = 2;
+                     ctx.stroke();
+                 }
+            }
+        }
+
+        function drawTree(x, y, index) {
+            // Scale factor to reduce tree size
+            const s = 0.3; 
+            
+            // Draw relative to x,y as the BASE center
+            
+            // Tree Trunk
+            ctx.fillStyle = '#8d6e63';
+            // Base is at y. Height is 40*s. Top is y - 40*s.
+            ctx.fillRect(x - 4*s, y - 40*s, 8*s, 40*s);
+            
+            // Tree Leaves (Triangle)
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            // Top point: y - 90*s
+            ctx.moveTo(x, y - 90*s);
+            // Bottom left
+            ctx.lineTo(x - 25*s, y - 40*s);
+            // Bottom right
+            ctx.lineTo(x + 25*s, y - 40*s);
+            ctx.fill();
+            
+            // Circle variant for leaves
+            ctx.beginPath();
+            ctx.arc(x, y - 55*s, 20*s, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawHole(x, y) {
+            // Cross mark for no tree
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x - 6, y - 6);
+            ctx.lineTo(x + 6, y + 6);
+            ctx.moveTo(x + 6, y - 6);
+            ctx.lineTo(x - 6, y + 6);
+            ctx.stroke();
+            
+            ctx.fillStyle = '#666';
+            ctx.font = '10px Arial';
+            ctx.fillText("不栽", x, y + 15);
+        }
+
+        function drawGapLabel(x1, x2, y) {
+            const mid = (x1 + x2) / 2;
+            const width = x2 - x1;
+            
+            // Draw bracket line
+            ctx.beginPath();
+            ctx.moveTo(x1 + 2, y);
+            ctx.quadraticCurveTo(mid, y - 10, x2 - 2, y);
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Text
+            if (width > 30) { // Only show if space permits
+                ctx.fillStyle = '#f59e0b';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${gapLength}m`, mid, y - 15);
+            }
+        }
+
+        // Init
+        // Force initial update to set texts
+        update();
+    </script>
+</body>
+</html>

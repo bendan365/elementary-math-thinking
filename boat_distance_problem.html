@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>流水行船-求路程</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .desc {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .input-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        .scenario-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 80px;
+        }
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background-color: #e0f2fe;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .info-panel {
+            background-color: #eef2ff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: left;
+            margin-top: 20px;
+            border: 1px solid #dbeafe;
+        }
+        .formula-box {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #2563eb;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        .highlight { color: #dc2626; font-weight: bold; }
+        .highlight-blue { color: #2563eb; font-weight: bold; }
+        .speed-chart-container {
+            width: 100%;
+            height: 300px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🚤 流水行船：已知时间求路程 🌊</h1>
+    <div class="desc">已知水流速度和往返时间，求甲乙两地的距离。</div>
+
+    <div class="input-panel">
+        <div class="scenario-row">
+            <div class="input-group">
+                🌊 水流速度 <input type="number" id="speedWater" value="3" min="0.1" step="0.1"> km/h
+            </div>
+            <div class="input-group">
+                ⏱️ 顺流时间(去) <input type="number" id="timeDown" value="4" min="0.1" step="0.1"> 小时
+            </div>
+            <div class="input-group">
+                ⏱️ 逆流时间(回) <input type="number" id="timeUp" value="5" min="0.1" step="0.1"> 小时
+            </div>
+        </div>
+
+        <button class="btn" onclick="startSimulation()">🚀 开始求解与演示</button>
+    </div>
+
+    <div class="container" id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="info-panel" id="resultPanel" style="display:none;">
+        <h3>📊 求解过程与速度分析：</h3>
+        
+        <div class="speed-chart-container" id="speedChartContainer">
+            <canvas id="speedCanvas"></canvas>
+        </div>
+        <div style="font-size: 14px; color: #666; margin-bottom: 15px;">👆 速度线段图：直观展示顺流、逆流与水速的关系</div>
+
+        <div class="step-explanation" id="explanationText">
+            <!-- Explanation will be injected here -->
+        </div>
+        <div class="formula-box" id="formulaDisplay">
+            <!-- Formula will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        const speedCanvas = document.getElementById('speedCanvas');
+        const speedCtx = speedCanvas.getContext('2d');
+        const speedContainer = document.getElementById('speedChartContainer');
+
+        // State
+        let vWater = 3;
+        let tDown = 4;
+        let tUp = 5;
+        
+        // Calculated
+        let distance = 0;
+        let vBoat = 0;
+        let vDown = 0;
+        let vUp = 0;
+
+        // Animation State
+        let isRunning = false;
+        let progress = 0; // 0 to 1 (representing normalized time for the slower journey)
+        let animationId = null;
+
+        // Visual constants
+        const margin = 60;
+        const rowHeight = 150;
+        const startY1 = 80;  // Downstream track Y
+        const startY2 = 280; // Upstream track Y
+
+        function resize() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            
+            speedCanvas.width = speedContainer.clientWidth;
+            speedCanvas.height = speedContainer.clientHeight;
+            
+            if (!isRunning) drawStatic();
+            if (vBoat > 0) drawSpeedChart();
+        }
+
+        window.addEventListener('resize', resize);
+        
+        function drawSpeedChart() {
+            const w = speedCanvas.width;
+            const h = speedCanvas.height;
+            const ctx = speedCtx;
+            ctx.clearRect(0, 0, w, h);
+            
+            // Layout
+            const chartMargin = 100; // Left margin for labels
+            const barHeight = 20;
+            const gap = 40;
+            const startY = 40;
+            
+            // Max value to scale (vDown is the largest)
+            // Add some padding
+            const maxVal = vDown * 1.2;
+            const scale = (w - chartMargin - 50) / maxVal;
+            
+            // Helper to draw bar
+            function drawBar(y, value, color, label) {
+                const barLen = value * scale;
+                
+                // Label
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText(label, chartMargin - 10, y + barHeight/2 + 5);
+                
+                // Bar
+                ctx.fillStyle = color;
+                ctx.fillRect(chartMargin, y, barLen, barHeight);
+                
+                // Value
+                ctx.textAlign = 'left';
+                ctx.fillText(`${value.toFixed(1)} km/h`, chartMargin + barLen + 10, y + barHeight/2 + 5);
+                
+                return barLen;
+            }
+            
+            // 1. Upstream Velocity (vUp)
+            // Draw vUp
+            // Formula: vUp = vBoat - vWater
+            // We want to show it as a base component
+            const y1 = startY;
+            const lenUp = drawBar(y1, vUp, '#ef4444', '逆流速度');
+            
+            // 2. Static Boat Velocity (vBoat)
+            // Formula: vBoat = vUp + vWater
+            const y2 = startY + gap;
+            // Draw vUp part
+            ctx.fillStyle = '#ef4444';
+            ctx.globalAlpha = 0.3; // Faded
+            ctx.fillRect(chartMargin, y2, lenUp, barHeight);
+            ctx.globalAlpha = 1.0;
+            
+            // Draw vWater part
+            const lenWater = vWater * scale;
+            ctx.fillStyle = '#0ea5e9'; // Water color
+            ctx.fillRect(chartMargin + lenUp, y2, lenWater, barHeight);
+            
+            // Label
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'right';
+            ctx.fillText('船速(静水)', chartMargin - 10, y2 + barHeight/2 + 5);
+            ctx.textAlign = 'left';
+            ctx.fillText(`${vBoat.toFixed(1)} km/h`, chartMargin + lenUp + lenWater + 10, y2 + barHeight/2 + 5);
+            
+            // Annotate water part
+            drawBrace(ctx, chartMargin + lenUp, chartMargin + lenUp + lenWater, y2 - 5, '水速', true);
+
+            // 3. Downstream Velocity (vDown)
+            // Formula: vDown = vBoat + vWater = vUp + 2*vWater
+            const y3 = startY + gap * 2;
+            
+            // Draw vUp part
+            ctx.fillStyle = '#ef4444';
+            ctx.globalAlpha = 0.3;
+            ctx.fillRect(chartMargin, y3, lenUp, barHeight);
+            
+            // Draw first vWater (to match boat speed)
+            ctx.fillStyle = '#0ea5e9'; 
+            ctx.globalAlpha = 0.3;
+            ctx.fillRect(chartMargin + lenUp, y3, lenWater, barHeight);
+            ctx.globalAlpha = 1.0;
+            
+            // Draw second vWater (added by current)
+            ctx.fillStyle = '#0ea5e9';
+            ctx.fillRect(chartMargin + lenUp + lenWater, y3, lenWater, barHeight);
+            
+            // Label
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'right';
+            ctx.fillText('顺流速度', chartMargin - 10, y3 + barHeight/2 + 5);
+            ctx.textAlign = 'left';
+            ctx.fillText(`${vDown.toFixed(1)} km/h`, chartMargin + lenUp + lenWater * 2 + 10, y3 + barHeight/2 + 5);
+
+            // Annotate the difference between vUp and vDown
+            drawBrace(ctx, chartMargin + lenUp, chartMargin + lenUp + lenWater * 2, y3 + barHeight + 15, '2倍水速 (速度差)', false);
+            
+            // 4. Comparison (Ratio Analysis)
+            const y4 = startY + gap * 3.5;
+            const barHeightSmall = 15;
+            
+            // Separator Line
+            ctx.beginPath();
+            ctx.moveTo(20, y3 + 50);
+            ctx.lineTo(w - 20, y3 + 50);
+            ctx.strokeStyle = '#eee';
+            ctx.stroke();
+            
+            // Label for this section
+            ctx.fillStyle = '#666';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText("份数关系分析:", chartMargin - 60, y4 - 10);
+            
+            // We use tDown and tUp to determine parts
+            // Speed is inverse to Time. 
+            // Ratio of Speed (Down : Up) = tUp : tDown
+            // e.g. Time 4 : 5 => Speed 5 : 4
+            // Parts: Down = tUp parts, Up = tDown parts
+            const partsDown = tUp;
+            const partsUp = tDown;
+            
+            // Total width available for bars (use same scale as above or re-scale?)
+            // Let's use the same scale to keep visual consistency with km/h
+            
+            // Draw vUp (partsUp)
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(chartMargin, y4, lenUp, barHeightSmall);
+            
+            // Draw parts markers for Up
+            const unitLen = lenUp / partsUp;
+            ctx.fillStyle = '#fff';
+            for(let i=1; i<partsUp; i++) {
+                ctx.fillRect(chartMargin + i*unitLen - 1, y4, 2, barHeightSmall);
+            }
+            
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'right';
+            ctx.fillText(`逆流 (${partsUp}份)`, chartMargin - 10, y4 + barHeightSmall/2 + 4);
+            
+            // Draw vDown (partsDown)
+            const y5 = y4 + 30;
+            const lenDown = lenUp + (vWater * 2 * scale); // Should match vDown * scale
+            
+            ctx.fillStyle = '#ef4444'; // Base color (same as Up)
+            ctx.fillRect(chartMargin, y5, lenDown, barHeightSmall);
+            
+            // Draw parts markers for Down
+            // unitLen should be consistent if physics holds (v = k * parts)
+            // vUp / partsUp = vDown / partsDown ? 
+            // Yes, vUp/tDown = vDown/tUp is NOT correct.
+            // Wait. Speed ratio = tUp : tDown.
+            // So vDown corresponds to tUp parts. vUp corresponds to tDown parts.
+            // vDown / tUp = vUp / tDown = constant (Distance / (tDown*tUp)) ? No.
+            // v = S / t. 
+            // vDown / vUp = (S/tDown) / (S/tUp) = tUp / tDown.
+            // So if we set 1 part = vUp / tDown (speed per part), then vDown has tUp parts? No.
+            // Let's check:
+            // vDown = k * tUp
+            // vUp = k * tDown
+            // Then vDown / vUp = tUp / tDown. Correct.
+            // So unit length (pixels per part) = lenUp / tDown = lenDown / tUp.
+            
+            const unitLenDown = lenDown / partsDown; 
+            // Ideally unitLenDown should approx equal unitLen
+            
+            ctx.fillStyle = '#fff';
+            for(let i=1; i<partsDown; i++) {
+                ctx.fillRect(chartMargin + i*unitLenDown - 1, y5, 2, barHeightSmall);
+            }
+            
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'right';
+            ctx.fillText(`顺流 (${partsDown}份)`, chartMargin - 10, y5 + barHeightSmall/2 + 4);
+            
+            // Highlight the difference in parts
+            const diffParts = partsDown - partsUp;
+            // Draw brace for difference
+            const diffPx = lenDown - lenUp;
+            
+            ctx.fillStyle = '#0ea5e9';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            // Draw a bracket or line under the difference
+            if (diffParts > 0) {
+                 drawBrace(ctx, chartMargin + lenUp, chartMargin + lenDown, y5 + barHeightSmall + 5, `相差 ${diffParts.toFixed(1)} 份`, false);
+                 ctx.fillStyle = '#666';
+                 ctx.fillText(`(即 2倍水速)`, (chartMargin + lenUp + chartMargin + lenDown)/2, y5 + barHeightSmall + 35);
+            }
+
+            // Vertical dashed lines to align segments (Main Chart)
+            ctx.setLineDash([5, 3]);
+            ctx.strokeStyle = '#ccc';
+            
+            // Line at vUp end
+            ctx.beginPath();
+            ctx.moveTo(chartMargin + lenUp, y1 + barHeight);
+            ctx.lineTo(chartMargin + lenUp, y5); // Extend down to parts comparison
+            ctx.stroke();
+            
+            // Line at vBoat end
+            ctx.beginPath();
+            ctx.moveTo(chartMargin + lenUp + (vWater*scale), y2 + barHeight);
+            ctx.lineTo(chartMargin + lenUp + (vWater*scale), y3 + barHeight + 5);
+            ctx.stroke();
+            
+            ctx.setLineDash([]);
+        }
+        
+        function drawBrace(ctx, x1, x2, y, label, isTop) {
+            ctx.beginPath();
+            const h = isTop ? -5 : 5;
+            const textY = isTop ? y - 15 : y + 20;
+            
+            ctx.moveTo(x1, y);
+            ctx.lineTo(x1, y + h);
+            ctx.lineTo(x2, y + h);
+            ctx.lineTo(x2, y);
+            ctx.strokeStyle = '#666';
+            ctx.stroke();
+            
+            ctx.fillStyle = '#666';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, (x1 + x2)/2, textY);
+        }
+
+        function solve() {
+            // Logic:
+            // S = (vBoat + vWater) * tDown
+            // S = (vBoat - vWater) * tUp
+            // (vBoat + vWater) * tDown = (vBoat - vWater) * tUp
+            // vBoat * tDown + vWater * tDown = vBoat * tUp - vWater * tUp
+            // vWater * (tDown + tUp) = vBoat * (tUp - tDown)
+            // vBoat = vWater * (tDown + tUp) / (tUp - tDown)
+            
+            if (tUp <= tDown) {
+                return { error: "逆流时间必须大于顺流时间（否则违背物理常识）" };
+            }
+
+            vBoat = vWater * (tUp + tDown) / (tUp - tDown);
+            distance = (vBoat + vWater) * tDown;
+            vDown = vBoat + vWater;
+            vUp = vBoat - vWater;
+
+            return { success: true };
+        }
+
+        function startSimulation() {
+            // Get inputs
+            vWater = parseFloat(document.getElementById('speedWater').value);
+            tDown = parseFloat(document.getElementById('timeDown').value);
+            tUp = parseFloat(document.getElementById('timeUp').value);
+
+            if (isNaN(vWater) || isNaN(tDown) || isNaN(tUp) || vWater <= 0 || tDown <= 0 || tUp <= 0) {
+                alert("请输入有效的正数值！");
+                return;
+            }
+
+            const result = solve();
+            if (result.error) {
+                alert(result.error);
+                return;
+            }
+
+            // Show explanation
+            showAnalysis();
+
+            // Start Animation
+            isRunning = true;
+            progress = 0;
+            if (animationId) cancelAnimationFrame(animationId);
+            animate();
+        }
+
+        function showAnalysis() {
+            const panel = document.getElementById('resultPanel');
+            panel.style.display = 'block';
+            
+            // Set canvas size now that panel is visible
+            speedCanvas.width = speedContainer.clientWidth;
+            speedCanvas.height = speedContainer.clientHeight;
+            drawSpeedChart();
+            
+            // Method 1: Speed Difference
+            const speedDiff = 2 * vWater;
+            
+            document.getElementById('explanationText').innerHTML = `
+                <strong>思路解析（奥数思维 - 差倍/比例法）：</strong><br>
+                1. 顺流速度 = 船速 + 水速，逆流速度 = 船速 - 水速。<br>
+                2. 两者速度之差 = <span class="highlight-blue">2 × 水速</span> = 2 × ${vWater} = ${speedDiff} km/h。<br>
+                3. 路程一定，速度与时间成反比。<br>
+                &nbsp;&nbsp;&nbsp;时间比 = 顺流 : 逆流 = ${tDown} : ${tUp}<br>
+                &nbsp;&nbsp;&nbsp;速度比 = 顺流 : 逆流 = ${tUp} : ${tDown}<br>
+                4. 顺流速度 = 速度差 ÷ (1 - 时间比) ... 或者用份数理解：<br>
+                &nbsp;&nbsp;&nbsp;速度差 ${speedDiff} 对应 (${tUp} - ${tDown}) 份，每份是 ${speedDiff / (tUp - tDown)}。<br>
+                &nbsp;&nbsp;&nbsp;顺流速度占 ${tUp} 份，即 ${vDown.toFixed(2)} km/h。
+            `;
+
+            document.getElementById('formulaDisplay').innerHTML = `
+                <strong>计算过程：</strong><br>
+                船速(静水) = 水速 × (逆流时间 + 顺流时间) ÷ (逆流时间 - 顺流时间)<br>
+                = ${vWater} × (${tUp} + ${tDown}) ÷ (${tUp} - ${tDown}) = <span class="highlight-blue">${vBoat.toFixed(2)}</span> km/h<br>
+                <br>
+                两地距离 = (船速 + 水速) × 顺流时间<br>
+                = (${vBoat.toFixed(2)} + ${vWater}) × ${tDown} = <span class="highlight">${distance.toFixed(2)}</span> km
+            `;
+        }
+
+        function animate() {
+            if (!isRunning) return;
+
+            // Normalize time: We want the animation to last ~4 seconds for the LONGER journey (tUp)
+            // progress goes from 0 to tUp (in simulation time units)
+            // Real duration 4s
+            const realDuration = 4000; 
+            const dt = tUp / 240; // Approx step size
+            
+            progress += dt;
+            
+            // Draw
+            draw();
+
+            if (progress < tUp) {
+                animationId = requestAnimationFrame(animate);
+            } else {
+                progress = tUp;
+                isRunning = false;
+                draw(); // Final frame
+            }
+        }
+
+        function draw() {
+            const w = canvas.width;
+            const h = canvas.height;
+            const h2 = h/2;
+            
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Backgrounds for two tracks
+            drawTrackBackground(0, h2, '顺流 (去) →');
+            drawTrackBackground(h2, h, '← 逆流 (回)');
+            
+            // Labels
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText("A港", margin, h2/2 - 30);
+            ctx.fillText("B港", w - margin, h2/2 - 30);
+            ctx.fillText("B港", w - margin, h2 + h2/2 - 30);
+            ctx.fillText("A港", margin, h2 + h2/2 - 30);
+
+            // Calculate positions
+            // Scale: Map Distance to (Width - 2*margin)
+            const scale = (w - 2 * margin) / distance;
+
+            // 1. Downstream Boat (Top)
+            // Time elapsed: progress
+            // Distance = vDown * time (capped at total distance)
+            let currentDistDown = 0;
+            if (progress < tDown) {
+                currentDistDown = vDown * progress;
+            } else {
+                currentDistDown = distance;
+            }
+            
+            const x1 = margin + currentDistDown * scale;
+            const y1 = h2/2; 
+            drawBoat(x1, y1 + 10, 'right', progress >= tDown);
+            
+            // Info text 1
+            ctx.fillStyle = '#2563eb';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`顺流耗时: ${Math.min(progress, tDown).toFixed(2)}h / ${tDown}h`, margin, y1 + 50);
+            if (progress >= tDown) {
+                ctx.fillText(`✅ 已到达`, margin + 140, y1 + 50);
+            }
+
+            // 2. Upstream Boat (Bottom)
+            // Starts from B (Right) goes to A (Left)
+            // Distance = vUp * time
+            let currentDistUp = 0;
+            if (progress < tUp) {
+                currentDistUp = vUp * progress;
+            } else {
+                currentDistUp = distance;
+            }
+            
+            const x2 = (w - margin) - currentDistUp * scale;
+            const y2 = h2 + h2/2;
+            drawBoat(x2, y2 + 10, 'left', progress >= tUp);
+
+            // Info text 2
+            ctx.fillStyle = '#dc2626';
+            ctx.textAlign = 'left'; // Align left to keep it consistent visually, or right?
+            // Let's put it on the right side
+            ctx.textAlign = 'right';
+            ctx.fillText(`逆流耗时: ${Math.min(progress, tUp).toFixed(2)}h / ${tUp}h`, w - margin, y2 + 50);
+            if (progress >= tUp) {
+                ctx.fillText(`✅ 已到达 `, w - margin - 140, y2 + 50);
+            }
+        }
+        
+        function drawStatic() {
+             // Initial static draw
+             const w = canvas.width;
+             const h = canvas.height;
+             const h2 = h/2;
+             
+             ctx.clearRect(0, 0, w, h);
+             drawTrackBackground(0, h2, '顺流 (去) →');
+             drawTrackBackground(h2, h, '← 逆流 (回)');
+             
+             // Labels
+             ctx.fillStyle = '#333';
+             ctx.font = 'bold 16px Arial';
+             ctx.textAlign = 'center';
+             ctx.fillText("A港", margin, h2/2 - 30);
+             ctx.fillText("B港", w - margin, h2/2 - 30);
+             ctx.fillText("B港", w - margin, h2 + h2/2 - 30);
+             ctx.fillText("A港", margin, h2 + h2/2 - 30);
+             
+             // Draw boats at start
+             const y1 = h2/2; 
+             drawBoat(margin, y1 + 10, 'right', false);
+             
+             const y2 = h2 + h2/2;
+             drawBoat(w - margin, y2 + 10, 'left', false);
+        }
+
+        function drawTrackBackground(yStart, yEnd, label) {
+            const h = yEnd - yStart;
+            const midY = yStart + h/2;
+            
+            // Water
+            ctx.fillStyle = '#bae6fd';
+            ctx.fillRect(0, midY - 20, canvas.width, 40);
+            
+            // Text Label
+            ctx.fillStyle = '#0ea5e9';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.globalAlpha = 0.3;
+            ctx.fillText(label, canvas.width/2, midY + 8);
+            ctx.globalAlpha = 1.0;
+            
+            // Ports (Simple rectangles)
+            ctx.fillStyle = '#8b4513';
+            ctx.fillRect(margin - 10, midY - 25, 20, 50); // Left Port
+            ctx.fillRect(canvas.width - margin - 10, midY - 25, 20, 50); // Right Port
+        }
+        
+        function drawBoat(x, y, facing, arrived) {
+            ctx.save();
+            ctx.translate(x, y);
+            if (facing === 'left') ctx.scale(-1, 1);
+            
+            // Hull
+            ctx.fillStyle = arrived ? '#10b981' : '#ef4444'; // Green if arrived
+            ctx.beginPath();
+            ctx.moveTo(-20, 0);
+            ctx.lineTo(20, 0);
+            ctx.lineTo(15, 10);
+            ctx.lineTo(-15, 10);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Sail/Cabin
+            ctx.fillStyle = '#fcd34d';
+            ctx.fillRect(-10, -15, 20, 15);
+            
+            // Flag pole
+            ctx.beginPath();
+            ctx.moveTo(0, -15);
+            ctx.lineTo(0, -30);
+            ctx.strokeStyle = '#333';
+            ctx.stroke();
+            
+            // Flag
+            ctx.beginPath();
+            ctx.moveTo(0, -30);
+            ctx.lineTo(15, -25);
+            ctx.lineTo(0, -20);
+            ctx.fillStyle = '#2563eb';
+            ctx.fill();
+
+            // Label "Boat"
+            if (arrived) {
+                ctx.save();
+                if (facing === 'left') ctx.scale(-1, 1); // Unflip text
+                ctx.fillStyle = '#065f46';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText("到达!", 0, -35);
+                ctx.restore();
+            }
+
+            ctx.restore();
+        }
+
+        // Init
+        resize();
+    </script>
+</body>
+</html>

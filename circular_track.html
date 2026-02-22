@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>环形跑道行程问题可视化</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .desc {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .input-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        .mode-selection {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .scenario-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 80px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+        .btn-reset {
+            background-color: #9ca3af;
+        }
+        .btn-reset:hover {
+            background-color: #6b7280;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .info-panel {
+            background-color: #eef2ff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: left;
+            margin-top: 20px;
+            border: 1px solid #dbeafe;
+        }
+        .formula-box {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #2563eb;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        .highlight { color: #dc2626; font-weight: bold; }
+        .highlight-blue { color: #2563eb; font-weight: bold; }
+        .step-explanation {
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 10px;
+            font-weight: bold;
+            color: #555;
+        }
+        .legend {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🔄 环形跑道行程问题 🔄</h1>
+    <div class="desc">选择模式，输入跑道长度和两人速度，直观演示相遇与追及过程。</div>
+
+    <div class="input-panel">
+        <div class="mode-selection">
+            <label class="radio-label">
+                <input type="radio" name="mode" value="meeting" checked onchange="handleModeChange()"> 
+                相遇问题 (背向而行)
+            </label>
+            <label class="radio-label">
+                <input type="radio" name="mode" value="chasing" onchange="handleModeChange()"> 
+                追及问题 (同向而行)
+            </label>
+        </div>
+
+        <div class="scenario-row">
+            <div class="input-group">
+                跑道周长 <input type="number" id="circumference" value="400" min="10"> 米
+            </div>
+        </div>
+        <div class="scenario-row">
+            <div class="input-group">
+                甲起点 <input type="number" id="startPosA" value="0" min="0"> 米
+            </div>
+            <div class="input-group">
+                乙起点 <input type="number" id="startPosB" value="0" min="0"> 米
+            </div>
+        </div>
+        <div class="scenario-row">
+            <div class="input-group">
+                甲速度 <input type="number" id="speedA" value="80" min="1"> 米/分
+            </div>
+            <div class="input-group">
+                乙速度 <input type="number" id="speedB" value="60" min="1"> 米/分
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><div class="dot" style="background:#3b82f6"></div> 甲 (蓝色)</div>
+            <div class="legend-item"><div class="dot" style="background:#ef4444"></div> 乙 (红色)</div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn" onclick="startSimulation()">🚀 开始演示</button>
+            <button class="btn btn-reset" onclick="resetSimulation()">🔄 重置</button>
+        </div>
+
+        <div class="stats">
+            <span id="timerDisplay">⏱️ 时间: 0.0 分</span>
+            <span id="statusDisplay">状态: 准备就绪</span>
+        </div>
+    </div>
+
+    <div class="container" id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="info-panel" id="resultPanel" style="display:none;">
+        <h3>📊 分析结果：</h3>
+        <div class="formula-box" id="formulaDisplay">
+            <!-- Formula will be injected here -->
+        </div>
+        <div class="step-explanation" id="explanationText">
+            <!-- Explanation will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        // State
+        let circumference = 400;
+        let startPosA = 0;
+        let startPosB = 0;
+        let vA = 80;
+        let vB = 60;
+        let mode = 'meeting'; // 'meeting' or 'chasing'
+        
+        let currentTime = 0;
+        let targetTime = 0;
+        let isRunning = false;
+        let animationId = null;
+        let isFinished = false;
+
+        // Visual constants
+        let centerX, centerY, radius;
+
+        function resize() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            centerX = canvas.width / 2;
+            centerY = canvas.height / 2;
+            radius = Math.min(centerX, centerY) - 60; // Padding
+            draw();
+        }
+
+        window.addEventListener('resize', resize);
+
+        function handleModeChange() {
+            const radios = document.getElementsByName('mode');
+            for (const r of radios) {
+                if (r.checked) {
+                    mode = r.value;
+                    break;
+                }
+            }
+            resetSimulation();
+        }
+
+        function resetSimulation() {
+            isRunning = false;
+            isFinished = false;
+            cancelAnimationFrame(animationId);
+            currentTime = 0;
+            
+            // Reload inputs
+            circumference = parseFloat(document.getElementById('circumference').value);
+            startPosA = parseFloat(document.getElementById('startPosA').value) || 0;
+            startPosB = parseFloat(document.getElementById('startPosB').value) || 0;
+            vA = parseFloat(document.getElementById('speedA').value);
+            vB = parseFloat(document.getElementById('speedB').value);
+            
+            calculateTargetTime();
+            
+            document.getElementById('timerDisplay').innerText = "⏱️ 时间: 0.0 分";
+            document.getElementById('statusDisplay').innerText = "状态: 准备就绪";
+            document.getElementById('resultPanel').style.display = 'none';
+            
+            draw();
+        }
+
+        function calculateTargetTime() {
+            // Normalize start positions to 0-circumference
+            startPosA = startPosA % circumference;
+            startPosB = startPosB % circumference;
+            if (startPosA < 0) startPosA += circumference;
+            if (startPosB < 0) startPosB += circumference;
+
+            if (mode === 'meeting') {
+                // 甲顺时针，乙逆时针
+                // 相遇距离 = 甲顺时针走到乙起点的距离
+                // 即从 A 到 B 的顺时针弧长
+                let dist = (startPosB - startPosA + circumference) % circumference;
+                if (dist === 0 && vA + vB > 0) dist = circumference; // 如果起点相同，需要跑一整圈
+                
+                targetTime = dist / (vA + vB);
+            } else {
+                // Chasing: 甲顺时针，乙顺时针
+                // 假设甲追乙
+                const speedDiff = vA - vB;
+                
+                if (speedDiff <= 0) {
+                    targetTime = Infinity;
+                } else {
+                    // 甲需要追的距离 = A到B的顺时针距离 (如果A在B后)
+                    // 如果 A 在 B 前面 (顺时针 A>B)，则甲需要跑 C - (A-B) = C + B - A
+                    // 统一公式: (startPosB - startPosA + circumference) % circumference
+                    
+                    let dist = (startPosB - startPosA + circumference) % circumference;
+                    if (dist === 0) dist = circumference; // 如果起点相同，需要跑一圈
+                    
+                    targetTime = dist / speedDiff;
+                }
+            }
+        }
+
+        function startSimulation() {
+            if (isRunning) return;
+            
+            // Get inputs
+            circumference = parseFloat(document.getElementById('circumference').value);
+            startPosA = parseFloat(document.getElementById('startPosA').value) || 0;
+            startPosB = parseFloat(document.getElementById('startPosB').value) || 0;
+            vA = parseFloat(document.getElementById('speedA').value);
+            vB = parseFloat(document.getElementById('speedB').value);
+
+            if (isNaN(circumference) || isNaN(vA) || isNaN(vB) || circumference <= 0 || vA <= 0 || vB <= 0) {
+                alert("请输入有效的正数值！");
+                return;
+            }
+
+            // Handle chasing mode special case
+            if (mode === 'chasing' && vA <= vB) {
+                alert("追及问题中，甲的速度必须大于乙的速度才能追上！(演示假设甲追乙)");
+                return;
+            }
+
+            calculateTargetTime();
+            
+            if (isFinished) {
+                currentTime = 0;
+                isFinished = false;
+            }
+
+            isRunning = true;
+            document.getElementById('statusDisplay').innerText = "状态: 演示中...";
+            animate();
+            showAnalysis();
+        }
+
+        function showAnalysis() {
+            const panel = document.getElementById('resultPanel');
+            panel.style.display = 'block';
+            
+            const meetDistA = vA * targetTime;
+            const meetDistB = vB * targetTime;
+
+            // Start positions description
+            const startDesc = (startPosA === startPosB) ? 
+                "同一点出发" : 
+                `甲在 ${startPosA}米处，乙在 ${startPosB}米处`;
+
+            if (mode === 'meeting') {
+                const speedSum = vA + vB;
+                // Calculate initial distance
+                let initDist = (startPosB - startPosA + circumference) % circumference;
+                if (initDist === 0) initDist = circumference;
+
+                document.getElementById('formulaDisplay').innerHTML = `
+                    相遇时间 = 初始距离 ÷ 速度和<br>
+                    ${targetTime.toFixed(2)} (分) = ${initDist} ÷ (${vA} + ${vB})
+                `;
+                document.getElementById('explanationText').innerHTML = `
+                    <strong>逻辑解析 (相遇问题)：</strong><br>
+                    1. 两人 ${startDesc}，背向而行（甲顺时针，乙逆时针）。<br>
+                    2. 他们之间的初始距离（甲顺时针方向）为 <span class="highlight-blue">${initDist}</span> 米。<br>
+                    3. 每经过 1 分钟，两人共缩短距离（${vA} + ${vB}）= ${speedSum} 米。<br>
+                    4. 需要的时间：${initDist} ÷ ${speedSum} = <span class="highlight">${targetTime.toFixed(2)}</span> 分钟。<br>
+                    5. 此时甲跑了 ${meetDistA.toFixed(1)} 米，乙跑了 ${meetDistB.toFixed(1)} 米。
+                `;
+            } else {
+                const speedDiff = vA - vB;
+                let initDist = (startPosB - startPosA + circumference) % circumference;
+                if (initDist === 0) initDist = circumference;
+
+                document.getElementById('formulaDisplay').innerHTML = `
+                    追及时间 = 追及距离 ÷ 速度差<br>
+                    ${targetTime.toFixed(2)} (分) = ${initDist} ÷ (${vA} - ${vB})
+                `;
+                document.getElementById('explanationText').innerHTML = `
+                    <strong>逻辑解析 (追及问题)：</strong><br>
+                    1. 两人 ${startDesc}，同向而行（都顺时针），甲比乙快。<br>
+                    2. 甲需要追赶的距离（落后乙的距离）为 <span class="highlight-blue">${initDist}</span> 米。<br>
+                    3. 每经过 1 分钟，甲追上乙（${vA} - ${vB}）= ${speedDiff} 米。<br>
+                    4. 需要的时间：${initDist} ÷ ${speedDiff} = <span class="highlight">${targetTime.toFixed(2)}</span> 分钟。<br>
+                    5. 此时甲跑了 ${meetDistA.toFixed(1)} 米，乙跑了 ${meetDistB.toFixed(1)} 米。
+                `;
+            }
+        }
+
+        function animate() {
+            if (!isRunning) return;
+
+            // Animation speed
+            const realDurationSecs = 5; 
+            const timeStep = targetTime / (realDurationSecs * 60); 
+            
+            currentTime += timeStep;
+
+            if (currentTime >= targetTime) {
+                currentTime = targetTime;
+                isRunning = false;
+                isFinished = true;
+                document.getElementById('statusDisplay').innerText = mode === 'meeting' ? "状态: 相遇! 🤝" : "状态: 追上! 🏁";
+            }
+
+            document.getElementById('timerDisplay').innerText = `⏱️ 时间: ${currentTime.toFixed(2)} 分`;
+            draw();
+
+            if (isRunning) {
+                animationId = requestAnimationFrame(animate);
+            }
+        }
+
+        function draw() {
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Track
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 15;
+            ctx.stroke();
+
+            // Calculate angles
+            // Start at -PI/2 (top)
+            // Circumference C corresponds to 2*PI radians
+            // Distance d corresponds to (d / C) * 2*PI radians
+            const startAngle = -Math.PI / 2;
+            
+            // Calculate start angles for A and B
+            const startAngleA = startAngle + (startPosA / circumference) * Math.PI * 2;
+            const startAngleB = startAngle + (startPosB / circumference) * Math.PI * 2;
+
+            // Draw Start Points for A and B
+            drawStartPoint(startAngleA, '甲起点', '#3b82f6');
+            drawStartPoint(startAngleB, '乙起点', '#ef4444');
+            
+            let angleA, angleB;
+            
+            // Calculate distances
+            const distA = vA * currentTime;
+            const distB = vB * currentTime;
+
+            if (mode === 'meeting') {
+                // A clockwise (+), B counter-clockwise (-)
+                angleA = startAngleA + (distA / circumference) * Math.PI * 2;
+                angleB = startAngleB - (distB / circumference) * Math.PI * 2;
+            } else {
+                // Both clockwise (+)
+                angleA = startAngleA + (distA / circumference) * Math.PI * 2;
+                angleB = startAngleB + (distB / circumference) * Math.PI * 2;
+            }
+
+            // Draw Paths (Traces)
+            
+            // Path A (Blue)
+            drawTrace(centerX, centerY, radius + 5, startAngleA, angleA, '#3b82f6', false);
+            
+            // Path B (Red)
+            drawTrace(centerX, centerY, radius - 5, startAngleB, angleB, '#ef4444', mode === 'meeting');
+
+            // Draw Person A (Blue)
+            const posA = getPosOnCircle(centerX, centerY, radius, angleA);
+            drawPerson(posA.x, posA.y, '甲', '#3b82f6');
+
+            // Draw Person B (Red)
+            const posB = getPosOnCircle(centerX, centerY, radius, angleB);
+            drawPerson(posB.x, posB.y, '乙', '#ef4444');
+
+            // Center Text
+            ctx.fillStyle = '#666';
+            ctx.font = '14px Arial';
+            ctx.fillText(`周长: ${circumference}m`, centerX, centerY);
+        }
+
+        function drawStartPoint(angle, label, color) {
+            const pos = getPosOnCircle(centerX, centerY, radius, angle);
+            const outerPos = getPosOnCircle(centerX, centerY, radius + 20, angle);
+            
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(outerPos.x, outerPos.y);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = color;
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            // Simple logic to avoid text overlap with circle
+            const textY = outerPos.y + (outerPos.y < centerY ? -5 : 15);
+            ctx.fillText(label, outerPos.x, textY);
+        }
+
+        function drawTrace(cx, cy, r, startAngle, endAngle, color, isCCW) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, startAngle, endAngle, isCCW);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        function getPosOnCircle(cx, cy, r, angle) {
+            return {
+                x: cx + r * Math.cos(angle),
+                y: cy + r * Math.sin(angle)
+            };
+        }
+
+        function drawPerson(x, y, label, color) {
+            ctx.beginPath();
+            ctx.arc(x, y, 8, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Label
+            ctx.fillStyle = color;
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText(label, x + 12, y + 4);
+        }
+
+        // Init
+        resize();
+        resetSimulation();
+    </script>
+</body>
+</html>

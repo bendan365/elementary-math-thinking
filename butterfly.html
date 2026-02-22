@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小学数学 - 蝴蝶模型演示</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            overflow: auto;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fff;
+            cursor: pointer;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        label {
+            font-weight: 600;
+            color: #555;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #dfe6e9;
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+            transition: background .15s ease-in-out;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #2980b9;
+        }
+        .value-display {
+            font-weight: bold;
+            color: #3498db;
+        }
+        .info-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .stats-card {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid #3498db;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .stats-card h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 1.1em;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+        .formula-box {
+            background-color: #fff8e1;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ffe0b2;
+            margin-top: 20px;
+        }
+        .formula-box h3 {
+            margin-top: 0;
+            color: #f57c00;
+        }
+        .formula-item {
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+        }
+        .highlight {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9em;
+        }
+        .color-box {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+        }
+        
+        @media (max-width: 768px) {
+            .info-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🦋 小学数学 - 蝴蝶模型演示</h1>
+        
+        <div class="canvas-container">
+            <canvas id="geometryCanvas" width="600" height="400"></canvas>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><div class="color-box" style="background: rgba(255, 99, 71, 0.6)"></div>上三角形 (S₂)</div>
+            <div class="legend-item"><div class="color-box" style="background: rgba(65, 105, 225, 0.6)"></div>下三角形 (S₄)</div>
+            <div class="legend-item"><div class="color-box" style="background: rgba(60, 179, 113, 0.6)"></div>左翅膀 (S₁)</div>
+            <div class="legend-item"><div class="color-box" style="background: rgba(60, 179, 113, 0.6)"></div>右翅膀 (S₃)</div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>上底 (a): <span id="topVal" class="value-display">100</span></label>
+                <input type="range" id="topBase" min="20" max="300" value="100">
+            </div>
+            <div class="control-group">
+                <label>下底 (b): <span id="bottomVal" class="value-display">200</span></label>
+                <input type="range" id="bottomBase" min="20" max="300" value="200">
+            </div>
+            <div class="control-group">
+                <label>高度 (h): <span id="heightVal" class="value-display">150</span></label>
+                <input type="range" id="height" min="50" max="300" value="150">
+            </div>
+            <div class="control-group">
+                <label>上底偏移 (倾斜度): <span id="shiftVal" class="value-display">50</span></label>
+                <input type="range" id="shift" min="0" max="200" value="50">
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="stats-card">
+                <h3>📐 面积计算</h3>
+                <p>上三角形 (S₂): <span id="areaTop" class="highlight">0</span></p>
+                <p>下三角形 (S₄): <span id="areaBottom" class="highlight">0</span></p>
+                <p>左翅膀 (S₁): <span id="areaLeft" class="highlight">0</span></p>
+                <p>右翅膀 (S₃): <span id="areaRight" class="highlight">0</span></p>
+                <p><strong>梯形总面积: <span id="areaTotal">0</span></strong></p>
+            </div>
+            <div class="stats-card">
+                <h3>🔍 验证性质</h3>
+                <p>1. 翅膀相等: <span id="checkWings"></span></p>
+                <p>2. 乘积相等 (S₁×S₃ = S₂×S₄):</p>
+                <p style="padding-left: 15px;">S₁×S₃ = <span id="prodWings">0</span></p>
+                <p style="padding-left: 15px;">S₂×S₄ = <span id="prodTopBottom">0</span></p>
+            </div>
+        </div>
+
+        <div class="formula-box">
+            <h3>📝 蝴蝶模型核心知识点</h3>
+            <div class="formula-item">1. 任意四边形对角线分出的四个三角形：<strong>S₁ × S₃ = S₂ × S₄</strong></div>
+            <div class="formula-item">2. 梯形蝴蝶模型（上下底平行）：<strong>S₁ = S₃</strong> （左右翅膀面积相等）</div>
+            <div class="formula-item">3. 梯形面积比性质：<strong>S₂ : S₄ = a² : b²</strong> （面积比等于边长平方比）</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('geometryCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Inputs
+        const topBaseInput = document.getElementById('topBase');
+        const bottomBaseInput = document.getElementById('bottomBase');
+        const heightInput = document.getElementById('height');
+        const shiftInput = document.getElementById('shift');
+
+        // Display elements
+        const topVal = document.getElementById('topVal');
+        const bottomVal = document.getElementById('bottomVal');
+        const heightVal = document.getElementById('heightVal');
+        const shiftVal = document.getElementById('shiftVal');
+
+        const areaTopDisplay = document.getElementById('areaTop');
+        const areaBottomDisplay = document.getElementById('areaBottom');
+        const areaLeftDisplay = document.getElementById('areaLeft');
+        const areaRightDisplay = document.getElementById('areaRight');
+        const areaTotalDisplay = document.getElementById('areaTotal');
+
+        const checkWingsDisplay = document.getElementById('checkWings');
+        const prodWingsDisplay = document.getElementById('prodWings');
+        const prodTopBottomDisplay = document.getElementById('prodTopBottom');
+
+        function draw() {
+            // Get values
+            const a = parseInt(topBaseInput.value);
+            const b = parseInt(bottomBaseInput.value);
+            const h = parseInt(heightInput.value);
+            const shift = parseInt(shiftInput.value);
+
+            // Update value displays
+            topVal.textContent = a;
+            bottomVal.textContent = b;
+            heightVal.textContent = h;
+            shiftVal.textContent = shift;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Calculate coordinates (centered horizontally)
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const startY = centerY - h / 2;
+            const endY = centerY + h / 2;
+
+            // Top base vertices (A, D)
+            const Ax = centerX - a / 2 + (shift - 100); // Adding shift for skew
+            const Ay = startY;
+            const Dx = centerX + a / 2 + (shift - 100);
+            const Dy = startY;
+
+            // Bottom base vertices (B, C) - Fixed centered
+            const Bx = centerX - b / 2;
+            const By = endY;
+            const Cx = centerX + b / 2;
+            const Cy = endY;
+
+            // Calculate Intersection Point O
+            // Line AC: y - Ay = (Cy - Ay)/(Cx - Ax) * (x - Ax)
+            // Line BD: y - By = (Dy - By)/(Dx - Bx) * (x - Bx)
+            // Solve for intersection
+            const den = (Bx - Dx) * (Ay - Cy) - (Ax - Cx) * (By - Dy);
+            const t = ((Ax - Bx) * (Ay - Cy) - (Ay - By) * (Ax - Cx)) / den;
+            
+            const Ox = Ax + t * (Dx - Ax); // Wait, this is for line intersection formula... let's use standard line-line intersection
+            
+            // Intersection of line segment p1-p2 and p3-p4
+            // p1=A, p2=C, p3=B, p4=D
+            // Intersection O
+            const intersection = getLineIntersection(Ax, Ay, Cx, Cy, Bx, By, Dx, Dy);
+            const Ox_val = intersection.x;
+            const Oy_val = intersection.y;
+
+            // Calculate Areas
+            // Area of triangle = 0.5 * |x1(y2 - y3) + x2(y3 - y1) + x3(y1 - y2)|
+            const S_top = calculateTriangleArea(Ax, Ay, Dx, Dy, Ox_val, Oy_val);
+            const S_bottom = calculateTriangleArea(Bx, By, Cx, Cy, Ox_val, Oy_val);
+            const S_left = calculateTriangleArea(Ax, Ay, Bx, By, Ox_val, Oy_val);
+            const S_right = calculateTriangleArea(Dx, Dy, Cx, Cy, Ox_val, Oy_val);
+            const S_total = S_top + S_bottom + S_left + S_right;
+
+            // Draw Shapes
+            // S_top (AOD) - Red
+            drawTriangle(Ax, Ay, Ox_val, Oy_val, Dx, Dy, 'rgba(255, 99, 71, 0.6)', 'S₂');
+            
+            // S_bottom (BOC) - Blue
+            drawTriangle(Bx, By, Ox_val, Oy_val, Cx, Cy, 'rgba(65, 105, 225, 0.6)', 'S₄');
+
+            // S_left (AOB) - Green
+            drawTriangle(Ax, Ay, Bx, By, Ox_val, Oy_val, 'rgba(60, 179, 113, 0.6)', 'S₁');
+
+            // S_right (DOC) - Green
+            drawTriangle(Dx, Dy, Cx, Cy, Ox_val, Oy_val, 'rgba(60, 179, 113, 0.6)', 'S₃');
+
+            // Draw Trapezoid Outline
+            ctx.beginPath();
+            ctx.moveTo(Ax, Ay);
+            ctx.lineTo(Bx, By);
+            ctx.lineTo(Cx, Cy);
+            ctx.lineTo(Dx, Dy);
+            ctx.closePath();
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw Diagonals
+            ctx.beginPath();
+            ctx.moveTo(Ax, Ay);
+            ctx.lineTo(Cx, Cy);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(Bx, By);
+            ctx.lineTo(Dx, Dy);
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = '#000';
+            ctx.font = '14px Arial';
+            ctx.fillText('A', Ax - 15, Ay - 5);
+            ctx.fillText('D', Dx + 5, Dy - 5);
+            ctx.fillText('B', Bx - 15, By + 15);
+            ctx.fillText('C', Cx + 5, Cy + 15);
+            ctx.fillText('O', Ox_val, Oy_val - 10);
+
+            // Update Info Panel
+            areaTopDisplay.textContent = Math.round(S_top);
+            areaBottomDisplay.textContent = Math.round(S_bottom);
+            areaLeftDisplay.textContent = Math.round(S_left);
+            areaRightDisplay.textContent = Math.round(S_right);
+            areaTotalDisplay.textContent = Math.round(S_total);
+
+            // Check Properties
+            const wingsEqual = Math.abs(S_left - S_right) < 0.1;
+            checkWingsDisplay.innerHTML = wingsEqual 
+                ? '<span style="color:green">✅ 相等</span>' 
+                : '<span style="color:red">❌ 不相等</span>';
+            
+            prodWingsDisplay.textContent = Math.round(S_left * S_right).toLocaleString();
+            prodTopBottomDisplay.textContent = Math.round(S_top * S_bottom).toLocaleString();
+        }
+
+        function drawTriangle(x1, y1, x2, y2, x3, y3, color, label) {
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineTo(x3, y3);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+            
+            // Draw label at centroid
+            const cx = (x1 + x2 + x3) / 3;
+            const cy = (y1 + y2 + y3) / 3;
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText(label, cx - 6, cy + 4);
+        }
+
+        function calculateTriangleArea(x1, y1, x2, y2, x3, y3) {
+            return 0.5 * Math.abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+        }
+
+        function getLineIntersection(p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y) {
+            const s1_x = p1_x - p0_x;
+            const s1_y = p1_y - p0_y;
+            const s2_x = p3_x - p2_x;
+            const s2_y = p3_y - p2_y;
+
+            const s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y);
+            const t = (s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / (-s2_x * s1_y + s1_x * s2_y);
+
+            if (s >= 0 && s <= 1 && t >= 0 && t <= 1) {
+                return {
+                    x: p0_x + (t * s1_x),
+                    y: p0_y + (t * s1_y)
+                };
+            }
+            return null; // No collision
+        }
+
+        // Event Listeners
+        topBaseInput.addEventListener('input', draw);
+        bottomBaseInput.addEventListener('input', draw);
+        heightInput.addEventListener('input', draw);
+        shiftInput.addEventListener('input', draw);
+
+        // Initial draw
+        draw();
+    </script>
+</body>
+</html>

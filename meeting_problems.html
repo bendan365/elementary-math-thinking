@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行程相遇问题可视化演示</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .desc {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .input-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        .scenario-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 80px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+        .btn-reset {
+            background-color: #9ca3af;
+        }
+        .btn-reset:hover {
+            background-color: #6b7280;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .info-panel {
+            background-color: #eef2ff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: left;
+            margin-top: 20px;
+            border: 1px solid #dbeafe;
+        }
+        .formula-box {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #2563eb;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        .highlight { color: #dc2626; font-weight: bold; }
+        .highlight-blue { color: #2563eb; font-weight: bold; }
+        .step-explanation {
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 10px;
+            font-weight: bold;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🏃 行程相遇问题可视化 🏃</h1>
+    <div class="desc">输入总路程和两人的速度，观察他们相遇的过程和规律。</div>
+
+    <div class="input-panel">
+        <div class="scenario-row">
+            <div class="input-group">
+                总路程 <input type="number" id="totalDistance" value="600" min="10"> 米
+            </div>
+        </div>
+        <div class="scenario-row">
+            <div class="input-group">
+                甲速度 <input type="number" id="speedA" value="70" min="1"> 米/分
+            </div>
+            <div class="input-group">
+                乙速度 <input type="number" id="speedB" value="50" min="1"> 米/分
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn" onclick="startSimulation()">🚀 开始演示</button>
+            <button class="btn btn-reset" onclick="resetSimulation()">🔄 重置</button>
+        </div>
+
+        <div class="stats">
+            <span id="timerDisplay">⏱️ 时间: 0.0 分</span>
+            <span id="statusDisplay">状态: 准备就绪</span>
+        </div>
+    </div>
+
+    <div class="container" id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="info-panel" id="resultPanel" style="display:none;">
+        <h3>📊 分析结果：</h3>
+        <div class="formula-box" id="formulaDisplay">
+            <!-- Formula will be injected here -->
+        </div>
+        <div class="step-explanation" id="explanationText">
+            <!-- Explanation will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        // State
+        let totalDist = 600;
+        let vA = 70;
+        let vB = 50;
+        
+        let currentTime = 0;
+        let meetingTime = 0;
+        let isRunning = false;
+        let animationId = null;
+        let isFinished = false;
+
+        // Visual constants
+        const margin = 50;
+        const groundY = 200;
+
+        function resize() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            draw();
+        }
+
+        window.addEventListener('resize', resize);
+
+        function resetSimulation() {
+            isRunning = false;
+            isFinished = false;
+            cancelAnimationFrame(animationId);
+            currentTime = 0;
+            
+            // Reload inputs just in case
+            totalDist = parseFloat(document.getElementById('totalDistance').value);
+            vA = parseFloat(document.getElementById('speedA').value);
+            vB = parseFloat(document.getElementById('speedB').value);
+            
+            meetingTime = totalDist / (vA + vB);
+            
+            document.getElementById('timerDisplay').innerText = "⏱️ 时间: 0.0 分";
+            document.getElementById('statusDisplay').innerText = "状态: 准备就绪";
+            document.getElementById('resultPanel').style.display = 'none';
+            
+            draw();
+        }
+
+        function startSimulation() {
+            if (isRunning) return;
+            
+            // Get inputs
+            totalDist = parseFloat(document.getElementById('totalDistance').value);
+            vA = parseFloat(document.getElementById('speedA').value);
+            vB = parseFloat(document.getElementById('speedB').value);
+
+            if (isNaN(totalDist) || isNaN(vA) || isNaN(vB) || totalDist <= 0 || vA <= 0 || vB <= 0) {
+                alert("请输入有效的正数值！");
+                return;
+            }
+
+            meetingTime = totalDist / (vA + vB);
+            
+            if (isFinished) {
+                // If already finished, reset first
+                currentTime = 0;
+                isFinished = false;
+            }
+
+            isRunning = true;
+            document.getElementById('statusDisplay').innerText = "状态: 演示中...";
+            animate();
+            
+            // Show analysis immediately or after? Let's show after or update during?
+            // Let's show static analysis at the bottom immediately so they can follow along
+            showAnalysis();
+        }
+
+        function showAnalysis() {
+            const panel = document.getElementById('resultPanel');
+            panel.style.display = 'block';
+            
+            const speedSum = vA + vB;
+            const meetDistA = vA * meetingTime;
+            const meetDistB = vB * meetingTime;
+
+            document.getElementById('formulaDisplay').innerHTML = `
+                相遇时间 = 总路程 ÷ 速度和<br>
+                ${meetingTime.toFixed(2)} (分) = ${totalDist} ÷ (${vA} + ${vB})
+            `;
+
+            document.getElementById('explanationText').innerHTML = `
+                <strong>逻辑解析：</strong><br>
+                1. 两人同时出发，相向而行。<br>
+                2. 每经过 1 分钟，两人之间的距离就缩短（${vA} + ${vB}）= <span class="highlight-blue">${speedSum}</span> 米。<br>
+                3. 要走完 ${totalDist} 米的全程，需要的时间就是：${totalDist} ÷ ${speedSum} = <span class="highlight">${meetingTime.toFixed(2)}</span> 分钟。<br>
+                4. 相遇时，甲走了 ${meetDistA.toFixed(1)} 米，乙走了 ${meetDistB.toFixed(1)} 米。
+            `;
+        }
+
+        function animate() {
+            if (!isRunning) return;
+
+            // Update time
+            // Speed factor: let's say the animation takes ~3-5 seconds depending on distance?
+            // Or just fixed speed multiplier.
+            // Let's make it so the whole simulation takes about 4 seconds.
+            const realDurationSecs = 4; 
+            const timeStep = meetingTime / (realDurationSecs * 60); // time increment per frame (assuming 60fps)
+            
+            currentTime += timeStep;
+
+            if (currentTime >= meetingTime) {
+                currentTime = meetingTime;
+                isRunning = false;
+                isFinished = true;
+                document.getElementById('statusDisplay').innerText = "状态: 已相遇 ✅";
+            }
+
+            document.getElementById('timerDisplay').innerText = `⏱️ 时间: ${currentTime.toFixed(2)} 分`;
+            draw();
+
+            if (isRunning) {
+                animationId = requestAnimationFrame(animate);
+            }
+        }
+
+        function draw() {
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Scale calculations
+            // Map 0 to totalDist -> margin to w - margin
+            const scale = (w - 2 * margin) / totalDist;
+            
+            // Positions
+            const distA = vA * currentTime;
+            const distB = vB * currentTime;
+            
+            const posA_screen = margin + distA * scale;
+            const posB_screen = (w - margin) - distB * scale;
+
+            // 1. Draw Road
+            ctx.beginPath();
+            ctx.moveTo(margin, groundY);
+            ctx.lineTo(w - margin, groundY);
+            ctx.strokeStyle = '#aaa';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Draw start and end ticks
+            ctx.beginPath();
+            ctx.moveTo(margin, groundY - 10);
+            ctx.lineTo(margin, groundY + 10);
+            ctx.moveTo(w - margin, groundY - 10);
+            ctx.lineTo(w - margin, groundY + 10);
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Labels for Start/End
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('A起点', margin, groundY + 30);
+            ctx.fillText('B起点', w - margin, groundY + 30);
+            ctx.fillText(`总路程: ${totalDist}米`, w / 2, groundY + 40);
+
+            // 2. Draw Meeting Point Flag (if we know it or always show target?)
+            // Let's show the target meeting point as a ghost flag
+            const meetX = margin + (vA * meetingTime) * scale;
+            if (isRunning || isFinished) {
+                drawFlag(meetX, groundY, '🏁');
+            }
+
+            // 3. Draw Person A
+            drawPerson(posA_screen, groundY, '甲', '#3b82f6', distA);
+            
+            // 4. Draw Person B
+            drawPerson(posB_screen, groundY, '乙', '#ef4444', distB);
+            
+            // 5. Draw Path Lines (Traces)
+            // Path A
+            ctx.beginPath();
+            ctx.moveTo(margin, groundY - 30);
+            ctx.lineTo(posA_screen, groundY - 30);
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset
+
+            // Path B
+            ctx.beginPath();
+            ctx.moveTo(w - margin, groundY - 30);
+            ctx.lineTo(posB_screen, groundY - 30);
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset
+            
+            // Distance labels above trace
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillText(`${distA.toFixed(0)}米`, (margin + posA_screen)/2, groundY - 40);
+            
+            ctx.fillStyle = '#ef4444';
+            ctx.fillText(`${distB.toFixed(0)}米`, (w - margin + posB_screen)/2, groundY - 40);
+
+            // 6. Interaction Animation (Collision effect)
+            if (isFinished) {
+                ctx.fillStyle = '#fbbf24';
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.arc(meetX, groundY - 20, 30, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 16px Arial';
+                ctx.fillText('相遇!', meetX, groundY - 60);
+            }
+        }
+
+        function drawPerson(x, y, label, color, dist) {
+            ctx.save();
+            ctx.translate(x, y);
+            
+            // Simple stick figure or circle
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(0, -20, 10, 0, Math.PI*2); // Head
+            ctx.fill();
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -10);
+            ctx.lineTo(0, 0); // Body
+            ctx.stroke();
+
+            // Label
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText(label, 0, -35);
+            
+            // Speed label
+            const speedVal = label === '甲' ? vA : vB;
+            ctx.fillStyle = '#666';
+            ctx.font = '10px Arial';
+            ctx.fillText(`${speedVal}米/分`, 0, 15);
+
+            ctx.restore();
+        }
+
+        function drawFlag(x, y, icon) {
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(icon, x, y - 5); // Just above ground
+        }
+
+        // Init
+        resize();
+        resetSimulation(); // Set initial state
+    </script>
+</body>
+</html>

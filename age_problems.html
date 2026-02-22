@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>年龄问题 - 差倍原理可视化</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Microsoft YaHei', sans-serif;
+            background-color: #f3e5f5; /* Purple tint */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background-color: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+        h1 {
+            color: #7b1fa2;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .problem-statement {
+            background-color: #e1bee7;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            color: #4a148c;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+        input {
+            padding: 5px;
+            border: 2px solid #ce93d8;
+            border-radius: 5px;
+            width: 60px;
+            text-align: center;
+            font-size: 1em;
+        }
+        button {
+            background-color: #8e24aa;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: 0.3s;
+        }
+        button:hover {
+            background-color: #6a1b9a;
+        }
+
+        /* Visualization Area */
+        .visual-stage {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+        
+        .scene {
+            border: 1px dashed #bdbdbd;
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+            background-color: #fafafa;
+        }
+        .scene-title {
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background-color: #8e24aa;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 0.9em;
+        }
+
+        /* Bars */
+        .bar-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            height: 40px;
+        }
+        .label {
+            width: 80px;
+            text-align: right;
+            margin-right: 15px;
+            font-weight: bold;
+            color: #555;
+        }
+        .bar-container {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+        }
+        .bar-unit {
+            height: 40px;
+            width: 60px; /* Base width for 1 unit */
+            background-color: #4db6ac;
+            border: 2px solid #009688;
+            margin-right: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .bar-unit.mom {
+            background-color: #ec407a;
+            border-color: #c2185b;
+        }
+        .bar-unit.future {
+            opacity: 0.6;
+            border-style: dashed;
+        }
+        .bar-diff {
+            background-color: transparent;
+            border: 2px dashed #ff5722;
+            color: #e64a19;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 36px;
+        }
+        
+        /* Brackets */
+        .brace-h {
+            border-bottom: 2px solid #333;
+            border-left: 2px solid #333;
+            border-right: 2px solid #333;
+            height: 10px;
+            margin-top: 5px;
+            position: relative;
+            text-align: center;
+        }
+        .brace-label {
+            position: absolute;
+            bottom: -25px;
+            width: 100%;
+            font-size: 0.9em;
+            color: #333;
+        }
+
+        .step-box {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 0.95em;
+        }
+        
+        .highlight {
+            color: #d81b60;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>👩‍👦 年龄问题：差倍图解</h1>
+    
+    <div class="problem-statement">
+        题目：
+        <div class="input-row">
+            妈妈比小明大 <input type="number" id="diff" value="24"> 岁。
+        </div>
+        <div class="input-row">
+            <input type="number" id="years" value="3"> 年后，妈妈年龄是小明的 <input type="number" id="mult" value="3"> 倍。
+        </div>
+        <div style="text-align:center; margin-top:10px;">
+            求：妈妈和小明现在的年龄。
+            <br>
+            <button onclick="solve()">🎨 生成图解</button>
+        </div>
+    </div>
+
+    <div id="solution-area" style="display:none;">
+        
+        <!-- Scene 1: Future State Analysis -->
+        <div class="scene">
+            <div class="scene-title">1. 穿越到未来 (3年后)</div>
+            <p>我们先看 <span id="disp-years">3</span> 年后的情况，这时候倍数关系最清楚。</p>
+            
+            <div id="visual-future">
+                <!-- JS will inject bars here -->
+            </div>
+            
+            <div class="step-box">
+                <strong>关键分析：</strong><br>
+                妈妈比小明多 <span class="highlight" id="disp-mult-diff">2</span> 倍。<br>
+                而我们知道，<strong>年龄差永远不变</strong>，所以这多出来的份数，刚好就是 <span class="highlight" id="disp-diff-val">24</span> 岁！
+            </div>
+        </div>
+
+        <!-- Scene 2: Calculation -->
+        <div class="scene">
+            <div class="scene-title">2. 计算 "1倍" 是多少</div>
+            <div style="font-size: 1.1em; text-align: center; padding: 10px;">
+                1倍量 (小明未来的年龄) = 年龄差 ÷ (倍数 - 1)
+                <br><br>
+                <span class="highlight" id="calc-step1">24 ÷ (3 - 1) = 12</span> 岁
+            </div>
+            <p style="text-align:center; color:#666;">所以，3年后小明是 12 岁。</p>
+        </div>
+
+        <!-- Scene 3: Back to Present -->
+        <div class="scene">
+            <div class="scene-title">3. 回到现代 (求答案)</div>
+            <div class="bar-row">
+                <div class="label">小明现在</div>
+                <div class="bar-container">
+                    <div class="bar-unit" style="width:100px; background:#4db6ac;">
+                        <span id="ans-small">9</span> 岁
+                    </div>
+                    <div style="margin-left: 10px; color:#888;">(未来12岁 - 3年)</div>
+                </div>
+            </div>
+            <div class="bar-row">
+                <div class="label">妈妈现在</div>
+                <div class="bar-container">
+                    <div class="bar-unit mom" style="width:200px;">
+                        <span id="ans-big">33</span> 岁
+                    </div>
+                    <div style="margin-left: 10px; color:#888;">(小明 + 24岁)</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    function solve() {
+        const diff = parseInt(document.getElementById('diff').value);
+        const years = parseInt(document.getElementById('years').value);
+        const mult = parseInt(document.getElementById('mult').value);
+
+        if(isNaN(diff) || isNaN(years) || isNaN(mult)) return;
+
+        // Logic
+        // Future: Big = Small * Mult
+        // Future: Big - Small = Diff (Constant)
+        // Small * (Mult - 1) = Diff
+        const futureSmall = diff / (mult - 1);
+        const currentSmall = futureSmall - years;
+        const currentBig = currentSmall + diff;
+
+        // Update Text
+        document.getElementById('disp-years').innerText = years;
+        document.getElementById('disp-mult-diff').innerText = mult - 1;
+        document.getElementById('disp-diff-val').innerText = diff;
+        document.getElementById('calc-step1').innerText = `${diff} ÷ (${mult} - 1) = ${futureSmall}`;
+        document.getElementById('ans-small').innerText = currentSmall;
+        document.getElementById('ans-big').innerText = currentBig;
+
+        // Render Future Visual
+        let html = '';
+        
+        // Small Bar (1 Unit)
+        html += `
+            <div class="bar-row">
+                <div class="label">小明 (未来)</div>
+                <div class="bar-container">
+                    <div class="bar-unit">1份</div>
+                </div>
+            </div>
+        `;
+
+        // Big Bar (N Units)
+        let bigUnitsHtml = '';
+        for(let i=0; i<mult; i++) {
+            bigUnitsHtml += `<div class="bar-unit mom">1份</div>`;
+        }
+
+        html += `
+            <div class="bar-row">
+                <div class="label">妈妈 (未来)</div>
+                <div class="bar-container" style="align-items: flex-start; flex-direction: column;">
+                    <div style="display:flex;">
+                        ${bigUnitsHtml}
+                    </div>
+                    <!-- Difference Brace -->
+                    <div style="margin-left: 64px; width: ${62 * (mult-1) - 4}px;">
+                        <div class="brace-h">
+                            <div class="brace-label">相差 ${mult-1} 份 = <strong>${diff} 岁</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('visual-future').innerHTML = html;
+        document.getElementById('solution-area').style.display = 'block';
+    }
+
+    // Run on load
+    window.onload = solve;
+</script>
+
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小学奥数可视化演示集</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 40px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            width: 100%;
+            max-width: 1000px;
+        }
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            border: 1px solid #eef2f7;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            border-color: #b3e5fc;
+        }
+        .icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+        .title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #34495e;
+            margin-bottom: 10px;
+        }
+        .description {
+            color: #7f8c8d;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 15px;
+            color: white;
+        }
+        .badge-geo { background-color: #3498db; }
+        .badge-alg { background-color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <h1>🎓 小学奥数可视化演示集</h1>
+    
+    <div class="card-container">
+        <a href="chicken_rabbit.html" class="card">
+            <div class="icon">🐔🐰</div>
+            <div class="title">鸡兔同笼</div>
+            <div class="description">
+                经典的代数思维启蒙问题。输入头和脚的数量，通过假设法一步步推导出鸡和兔子的数量。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="cow_eating_grass.html" class="card">
+            <div class="icon">🐄🌿</div>
+            <div class="title">牛吃草问题</div>
+            <div class="description">
+                经典的增长模型问题。通过对比不同头数和天数的情况，推导出草的生长速度和原有草量。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="boat_distance_problem.html" class="card">
+            <div class="icon">🌊</div>
+            <div class="title">流水行船-求路程</div>
+            <div class="description">
+                已知水流速度和往返时间，求甲乙两地的距离。通过速度差和时间比进行推导。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="boat_current_problems.html" class="card">
+            <div class="icon">🚤</div>
+            <div class="title">流水行船问题</div>
+            <div class="description">
+                经典的流水问题演示。设置船速和水速，直观对比顺流与逆流的速度变化及时间差异。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="pursuit_problems.html" class="card">
+            <div class="icon">🐆</div>
+            <div class="title">行程追及问题</div>
+            <div class="description">
+                经典的追及问题演示。输入起始距离和两人的速度，直观展示追及过程及时间计算。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="la_chuan_lian.html" class="card">
+            <div class="icon">🎪</div>
+            <div class="title">拉窗帘模型</div>
+            <div class="description">
+                几何可视化演示。拖动顶点观察同底等高的三角形面积变化规律，直观理解平行线间的面积不变性。
+            </div>
+            <span class="badge badge-geo">几何模型</span>
+        </a>
+
+        <a href="butterfly.html" class="card">
+            <div class="icon">🦋</div>
+            <div class="title">蝴蝶模型</div>
+            <div class="description">
+                梯形中的经典几何模型。交互式调整梯形参数，验证翅膀面积相等及对角线分块面积乘积性质。
+            </div>
+            <span class="badge badge-geo">几何模型</span>
+        </a>
+
+        <a href="meeting_problems.html" class="card">
+            <div class="icon">🏃</div>
+            <div class="title">行程相遇问题</div>
+            <div class="description">
+                经典的行程问题演示。输入总路程和两人的速度，直观展示相遇过程及时间计算。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="circular_track.html" class="card">
+            <div class="icon">🔄</div>
+            <div class="title">环形跑道问题</div>
+            <div class="description">
+                行程问题的拓展。在封闭路线上，演示背向相遇和同向追及的周期性规律。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="square_matrix.html" class="card">
+            <div class="icon">🔳</div>
+            <div class="title">方阵问题</div>
+            <div class="description">
+                经典的队列排列问题。直观展示实心方阵与空心方阵的数量关系，理解层数与总数、最外层数量的规律。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="tree_planting.html" class="card">
+            <div class="icon">🌳</div>
+            <div class="title">植树问题</div>
+            <div class="description">
+                经典的间隔问题。直观展示两端栽、两端不栽、封闭图形等场景下的数量关系。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="train_bridge_problem.html" class="card">
+            <div class="icon">🚂</div>
+            <div class="title">火车过桥问题</div>
+            <div class="description">
+                行程问题的经典模型。输入桥长、车长和车速，直观展示火车完全过桥的过程及路程计算。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="surplus_deficit.html" class="card">
+            <div class="icon">⚖️</div>
+            <div class="title">盈亏问题</div>
+            <div class="description">
+                分配问题的可视化。通过两种分配方案的盈亏差异，推导出总人数和物品总数。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="age_problems.html" class="card">
+            <div class="icon">🎂</div>
+            <div class="title">年龄问题</div>
+            <div class="description">
+                差倍原理的可视化应用。通过年龄差不变的性质，解决倍数关系和年龄推算问题。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="sum_diff_multiple.html" class="card">
+            <div class="icon">🔢</div>
+            <div class="title">和差倍问题</div>
+            <div class="description">
+                和差、和倍、差倍问题的综合演示。通过线段图直观展示数量关系，辅助列式计算。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="unitary_total_method.html" class="card">
+            <div class="icon">🧮</div>
+            <div class="title">归一归总问题</div>
+            <div class="description">
+                应用题核心思维。直观演示“先求单一量”与“先求总量”的解题过程，对比两种思路的区别。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="engineering_problems.html" class="card">
+            <div class="icon">🏗️</div>
+            <div class="title">工程问题</div>
+            <div class="description">
+                把总量看作“1”，通过效率解决多人合作问题。直观展示甲乙单独做与合作做的效率对比。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="handshake_problem.html" class="card">
+            <div class="icon">🤝</div>
+            <div class="title">握手问题</div>
+            <div class="description">
+                经典的组合数学问题。直观展示多人互握的过程，理解 n(n-1)/2 的公式推导。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+
+        <a href="rope_cutting.html" class="card">
+            <div class="icon">✂️</div>
+            <div class="title">剪绳问题</div>
+            <div class="description">
+                经典的段数与次数关系。直观展示直线、环形、折叠等不同剪法下的规律。
+            </div>
+            <span class="badge badge-alg">代数思维</span>
+        </a>
+    </div>
+
+    <footer style="margin-top: 50px; color: #95a5a6; font-size: 14px;">
+        Made with ❤️ for Math Education
+    </footer>
+</body>
+</html>

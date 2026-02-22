@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>握手问题可视化</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .desc {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .input-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 80px;
+            font-size: 16px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+        .btn-reset {
+            background-color: #9ca3af;
+        }
+        .btn-reset:hover {
+            background-color: #6b7280;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .info-panel {
+            background-color: #eef2ff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: left;
+            margin-top: 20px;
+            border: 1px solid #dbeafe;
+        }
+        .formula-box {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #2563eb;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .highlight { color: #dc2626; font-weight: bold; }
+        .highlight-blue { color: #2563eb; font-weight: bold; }
+        .step-explanation {
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+        .log-container {
+            max-height: 150px;
+            overflow-y: auto;
+            background: #f1f1f1;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: left;
+            font-family: monospace;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .log-item {
+            margin-bottom: 4px;
+            border-bottom: 1px dashed #ddd;
+            padding-bottom: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🤝 握手问题可视化 🤝</h1>
+    <div class="desc">每两个人握一次手，一共握了几次？直观展示握手过程。</div>
+
+    <div class="input-panel">
+        <div class="input-group">
+            人数 <input type="number" id="peopleCount" value="5" min="2" max="20"> 人
+        </div>
+
+        <div class="btn-group">
+            <button class="btn" onclick="startSimulation()">🚀 开始演示</button>
+            <button class="btn btn-reset" onclick="resetSimulation()">🔄 重置</button>
+        </div>
+        
+        <div id="statusDisplay" style="font-weight: bold; color: #555;">状态: 准备就绪</div>
+    </div>
+
+    <div class="container" id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="info-panel" id="resultPanel" style="display:none;">
+        <h3>📊 统计结果：</h3>
+        <div class="formula-box" id="formulaDisplay">
+            <!-- Formula will be injected here -->
+        </div>
+        <div class="step-explanation" id="explanationText">
+            <!-- Explanation will be injected here -->
+        </div>
+        <div class="log-container" id="logContainer"></div>
+    </div>
+
+    <div class="info-panel" style="margin-top: 20px;">
+        <h3>📖 公式推理：为什么是 n(n-1)/2 ?</h3>
+        <div class="step-explanation">
+            <p><strong>思路一：每个人的握手次数</strong></p>
+            <ul>
+                <li>假设有 <strong>n</strong> 个人。</li>
+                <li>每个人都要和除了自己以外的 <strong>(n-1)</strong> 个人握手。</li>
+                <li>那么 n 个人一共握手：n × (n-1) 次。</li>
+                <li>但是！甲和乙握手，乙和甲握手，这是同一次握手。上面的算法把每次握手都算了2遍。</li>
+                <li>所以最后要除以 2：<span class="highlight-blue">n × (n-1) ÷ 2</span></li>
+            </ul>
+            
+            <p style="margin-top: 20px;"><strong>思路二：连线求和法</strong></p>
+            <ul>
+                <li>第 1 个人：和后面 (n-1) 个人握手。</li>
+                <li>第 2 个人：和后面 (n-2) 个人握手（不用和第1个人握了，因为已经握过了）。</li>
+                <li>...</li>
+                <li>第 n-1 个人：和最后 1 个人握手。</li>
+                <li>总次数 = (n-1) + (n-2) + ... + 2 + 1</li>
+                <li>这是一个等差数列求和，结果也是：<span class="highlight-blue">n × (n-1) ÷ 2</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+        const logContainer = document.getElementById('logContainer');
+
+        // State
+        let peopleCount = 5;
+        let isRunning = false;
+        let animationId = null;
+        
+        // Animation state
+        let currentPersonIndex = 0; // The person currently initiating handshakes
+        let targetPersonIndex = 0;  // The person they are shaking hands with
+        let completedHandshakes = []; // Array of pairs [i, j]
+        let currentLine = null; // {from: i, to: j, progress: 0-1}
+        
+        // Visual constants
+        let centerX, centerY, radius;
+        const personRadius = 20;
+
+        function resize() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            centerX = canvas.width / 2;
+            centerY = canvas.height / 2;
+            radius = Math.min(centerX, centerY) - 80; 
+            draw();
+        }
+
+        window.addEventListener('resize', resize);
+
+        function resetSimulation() {
+            isRunning = false;
+            cancelAnimationFrame(animationId);
+            
+            peopleCount = parseInt(document.getElementById('peopleCount').value);
+            if (peopleCount < 2) peopleCount = 2;
+            if (peopleCount > 20) peopleCount = 20;
+            document.getElementById('peopleCount').value = peopleCount;
+
+            currentPersonIndex = 0;
+            targetPersonIndex = 1; // Start with person 0 shaking with person 1
+            completedHandshakes = [];
+            currentLine = null;
+            
+            document.getElementById('statusDisplay').innerText = "状态: 准备就绪";
+            document.getElementById('resultPanel').style.display = 'none';
+            logContainer.innerHTML = '';
+            
+            draw();
+        }
+
+        function startSimulation() {
+            if (isRunning) return;
+            
+            resetSimulation();
+            
+            isRunning = true;
+            document.getElementById('statusDisplay').innerText = "状态: 演示中...";
+            document.getElementById('resultPanel').style.display = 'block';
+            
+            updateExplanation();
+            animate();
+        }
+
+        function updateExplanation() {
+            const total = peopleCount * (peopleCount - 1) / 2;
+            const currentTotal = completedHandshakes.length;
+            
+            document.getElementById('formulaDisplay').innerHTML = `
+                握手总次数 = n × (n-1) ÷ 2<br>
+                ${total} = ${peopleCount} × ${peopleCount-1} ÷ 2
+            `;
+            
+            document.getElementById('explanationText').innerHTML = `
+                <strong>当前进度：</strong><br>
+                已完成握手: <span class="highlight-blue">${currentTotal}</span> 次<br>
+                正在进行: 第 ${currentPersonIndex + 1} 人与其他人握手...
+            `;
+        }
+        
+        function addLog(msg) {
+            const div = document.createElement('div');
+            div.className = 'log-item';
+            div.innerText = msg;
+            logContainer.prepend(div);
+        }
+
+        function animate() {
+            if (!isRunning) return;
+
+            // Logic to progress animation
+            if (!currentLine) {
+                // Start a new handshake
+                if (currentPersonIndex < peopleCount - 1) {
+                    if (targetPersonIndex < peopleCount) {
+                        currentLine = {
+                            from: currentPersonIndex,
+                            to: targetPersonIndex,
+                            progress: 0
+                        };
+                    } else {
+                        // Move to next person
+                        currentPersonIndex++;
+                        targetPersonIndex = currentPersonIndex + 1;
+                        if (currentPersonIndex < peopleCount - 1) {
+                            currentLine = {
+                                from: currentPersonIndex,
+                                to: targetPersonIndex,
+                                progress: 0
+                            };
+                        } else {
+                            // Finished
+                            isRunning = false;
+                            document.getElementById('statusDisplay').innerText = "状态: 完成! 🎉";
+                            updateExplanation();
+                            draw();
+                            return;
+                        }
+                    }
+                } else {
+                    isRunning = false;
+                    return;
+                }
+            }
+
+            // Animate current line
+            if (currentLine) {
+                currentLine.progress += 0.05; // Animation speed
+                if (currentLine.progress >= 1) {
+                    completedHandshakes.push([currentLine.from, currentLine.to]);
+                    addLog(`第 ${currentLine.from + 1} 人 🤝 第 ${currentLine.to + 1} 人 (总第 ${completedHandshakes.length} 次)`);
+                    updateExplanation();
+                    
+                    // Prepare next
+                    targetPersonIndex++;
+                    currentLine = null;
+                }
+            }
+
+            draw();
+            animationId = requestAnimationFrame(animate);
+        }
+
+        function getPersonPos(index) {
+            // Start from top (-PI/2) and go clockwise
+            const angle = -Math.PI / 2 + (index / peopleCount) * Math.PI * 2;
+            return {
+                x: centerX + radius * Math.cos(angle),
+                y: centerY + radius * Math.sin(angle)
+            };
+        }
+
+        function draw() {
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw completed handshakes
+            ctx.lineWidth = 2;
+            for (const pair of completedHandshakes) {
+                const p1 = getPersonPos(pair[0]);
+                const p2 = getPersonPos(pair[1]);
+                
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.strokeStyle = '#ddd'; // Faint line for history
+                ctx.stroke();
+            }
+
+            // Draw current active line
+            if (currentLine) {
+                const p1 = getPersonPos(currentLine.from);
+                const p2 = getPersonPos(currentLine.to);
+                
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                
+                // Lerp
+                const endX = p1.x + (p2.x - p1.x) * currentLine.progress;
+                const endY = p1.y + (p2.y - p1.y) * currentLine.progress;
+                
+                ctx.lineTo(endX, endY);
+                ctx.strokeStyle = '#2563eb'; // Active color
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            }
+
+            // Draw people
+            for (let i = 0; i < peopleCount; i++) {
+                const pos = getPersonPos(i);
+                
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, personRadius, 0, Math.PI * 2);
+                
+                // Color logic
+                if (currentLine && (i === currentLine.from || i === currentLine.to)) {
+                    ctx.fillStyle = '#fbbf24'; // Active
+                } else if (i <= currentPersonIndex) {
+                    ctx.fillStyle = '#34d399'; // Done acting as initiator
+                } else {
+                    ctx.fillStyle = '#60a5fa'; // Waiting
+                }
+                
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Number
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(i + 1, pos.x, pos.y);
+            }
+        }
+
+        // Init
+        resize();
+        // resetSimulation();
+    </script>
+</body>
+</html>

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小学奥数 - 方阵问题可视化</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Microsoft YaHei', sans-serif;
+            background-color: #f0f8ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background-color: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            color: #4a69bd;
+            margin-bottom: 20px;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 20px;
+            background: #e1f5fe;
+            border-radius: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            align-items: center;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px;
+        }
+        label {
+            font-weight: bold;
+            color: #555;
+        }
+        input, select {
+            padding: 8px;
+            border: 2px solid #4a69bd;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 100px;
+        }
+        button {
+            background-color: #4a69bd;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 20px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 10px;
+        }
+        button:hover {
+            transform: scale(1.05);
+            background-color: #3c55a5;
+        }
+        .canvas-container {
+            margin: 20px auto;
+            display: flex;
+            justify-content: center;
+            overflow: auto;
+            max-width: 100%;
+        }
+        #matrix-canvas {
+            border: 1px solid #ddd;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid #4a69bd;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 5px 0;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        .formula-box {
+            margin-top: 20px;
+            text-align: left;
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ffe0b2;
+        }
+        .formula-title {
+            font-weight: bold;
+            color: #e65100;
+            margin-bottom: 10px;
+        }
+        .formula-item {
+            margin: 5px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔳 方阵问题可视化演示 🔲</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>方阵类型：</label>
+                <select id="matrixType" onchange="toggleInputs()">
+                    <option value="solid">实心方阵</option>
+                    <option value="hollow">空心方阵</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>最外层边长 (人/点)：</label>
+                <input type="number" id="sideLength" value="6" min="1" max="20">
+            </div>
+
+            <div class="control-group" id="layersGroup" style="display: none;">
+                <label>层数：</label>
+                <input type="number" id="layers" value="2" min="1">
+            </div>
+
+            <button onclick="drawMatrix()">生成方阵</button>
+        </div>
+
+        <div class="stats-panel" id="statsPanel" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-label">总人数 (总点数)</div>
+                <div class="stat-value" id="totalCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">最外层人数</div>
+                <div class="stat-value" id="outerCount">0</div>
+            </div>
+            <div class="stat-card" id="innerCard" style="display: none;">
+                <div class="stat-label">最内层人数</div>
+                <div class="stat-value" id="innerCount">0</div>
+            </div>
+        </div>
+
+        <div class="formula-box" id="formulaBox" style="display: none;">
+            <div class="formula-title">📐 计算公式详解</div>
+            <div id="formulas"></div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="matrix-canvas" width="400" height="400"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+        const DOT_RADIUS = 12;
+        const GAP = 30; // space between dots center-to-center
+        const PADDING = 40;
+
+        function toggleInputs() {
+            const type = document.getElementById('matrixType').value;
+            const layersGroup = document.getElementById('layersGroup');
+            if (type === 'hollow') {
+                layersGroup.style.display = 'flex';
+            } else {
+                layersGroup.style.display = 'none';
+            }
+        }
+
+        function drawMatrix() {
+            const type = document.getElementById('matrixType').value;
+            const side = parseInt(document.getElementById('sideLength').value);
+            let layers = parseInt(document.getElementById('layers').value);
+
+            if (!side || side < 1) return alert('请输入有效的边长');
+            
+            // Validation
+            if (type === 'hollow') {
+                if (layers < 1) {
+                    alert('层数至少为1');
+                    return;
+                }
+                if (layers * 2 > side) {
+                    alert('空心方阵的层数过多，中心会被填满！(层数 × 2 不能大于边长)');
+                    return;
+                }
+            } else {
+                // Solid is effectively full layers
+                layers = Math.ceil(side / 2); 
+            }
+
+            // Calculations
+            let total = 0;
+            let outer = (side - 1) * 4;
+            // Correction for side=1
+            if (side === 1) outer = 1;
+
+            let inner = 0;
+
+            if (type === 'solid') {
+                total = side * side;
+            } else {
+                // Hollow total: Outer square area - Inner empty area
+                // Inner empty side = side - 2 * layers
+                const innerEmptySide = side - 2 * layers;
+                total = (side * side) - (innerEmptySide * innerEmptySide);
+                
+                // Innermost layer count
+                const innerSide = side - 2 * (layers - 1);
+                inner = (innerSide - 1) * 4;
+                if (innerSide === 1) inner = 1;
+            }
+
+            // Update Stats
+            document.getElementById('statsPanel').style.display = 'grid';
+            document.getElementById('totalCount').innerText = total;
+            document.getElementById('outerCount').innerText = outer;
+            
+            if (type === 'hollow') {
+                document.getElementById('innerCard').style.display = 'block';
+                document.getElementById('innerCount').innerText = inner;
+            } else {
+                document.getElementById('innerCard').style.display = 'none';
+            }
+
+            // Update Formulas
+            updateFormulas(type, side, layers, total, outer);
+
+            // Draw
+            // Resize canvas
+            const canvasSize = side * GAP + PADDING * 2;
+            canvas.width = canvasSize;
+            canvas.height = canvasSize;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid
+            for (let row = 0; row < side; row++) {
+                for (let col = 0; col < side; col++) {
+                    const x = PADDING + col * GAP;
+                    const y = PADDING + row * GAP;
+                    
+                    // Determine if this dot should be drawn
+                    let shouldDraw = false;
+                    let layerIndex = -1; // 0 is outer
+
+                    // Calculate layer index for this dot
+                    // Distance from closest edge
+                    const distLeft = col;
+                    const distRight = side - 1 - col;
+                    const distTop = row;
+                    const distBottom = side - 1 - row;
+                    
+                    const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+                    layerIndex = minDist;
+
+                    if (type === 'solid') {
+                        shouldDraw = true;
+                    } else {
+                        if (layerIndex < layers) {
+                            shouldDraw = true;
+                        }
+                    }
+
+                    if (shouldDraw) {
+                        drawDot(x, y, layerIndex);
+                    }
+                }
+            }
+        }
+
+        function drawDot(x, y, layerIndex) {
+            ctx.beginPath();
+            ctx.arc(x, y, DOT_RADIUS, 0, Math.PI * 2);
+            
+            // Color based on layer (make it colorful)
+            const colors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6'];
+            ctx.fillStyle = colors[layerIndex % colors.length];
+            
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.closePath();
+
+            // Add number? Maybe too cluttered.
+        }
+
+        function updateFormulas(type, side, layers, total, outer) {
+            const box = document.getElementById('formulaBox');
+            const container = document.getElementById('formulas');
+            box.style.display = 'block';
+            
+            let html = '';
+            
+            html += `<div class="formula-item"><strong>1. 最外层人数：</strong> (边长 - 1) × 4 = (${side} - 1) × 4 = <strong>${outer}</strong></div>`;
+            
+            if (type === 'solid') {
+                html += `<div class="formula-item"><strong>2. 实心方阵总人数：</strong> 边长 × 边长 = ${side} × ${side} = <strong>${total}</strong></div>`;
+            } else {
+                const innerEmptySide = side - 2 * layers;
+                html += `<div class="formula-item"><strong>2. 空心方阵总人数：</strong> 大面积 - 小面积</div>`;
+                html += `<div class="formula-item">&nbsp;&nbsp; = ${side}² - (${side} - 2×${layers})²</div>`;
+                html += `<div class="formula-item">&nbsp;&nbsp; = ${side * side} - ${innerEmptySide * innerEmptySide} = <strong>${total}</strong></div>`;
+                
+                html += `<div class="formula-item"><strong>3. 另一种算法 (层层累加)：</strong></div>`;
+                html += `<div class="formula-item">&nbsp;&nbsp; 相邻两层相差 8 人 (最外层 ${outer})</div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Initialize
+        drawMatrix();
+    </script>
+</body>
+</html>

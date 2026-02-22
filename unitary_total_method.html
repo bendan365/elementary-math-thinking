@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小学数学归一与归总问题可视化演示</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f0f7ff;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .desc {
+            color: #555;
+            margin-bottom: 25px;
+            font-size: 16px;
+        }
+        .control-panel {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .mode-selection {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .mode-btn {
+            padding: 10px 20px;
+            border: 2px solid #3b82f6;
+            background-color: #fff;
+            color: #3b82f6;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        .mode-btn:hover {
+            background-color: #eff6ff;
+        }
+        .mode-btn.active {
+            background-color: #3b82f6;
+            color: white;
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+        }
+        .input-row {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+        }
+        input[type="number"] {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            width: 80px;
+            font-size: 16px;
+            text-align: center;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            min-height: 350px;
+            background-color: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            overflow: hidden;
+            margin-bottom: 20px;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .result-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 5px solid #10b981;
+            text-align: left;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .formula-title {
+            font-weight: bold;
+            font-size: 18px;
+            color: #10b981;
+            margin-bottom: 10px;
+        }
+        .formula-content {
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            background-color: #f0fdf4;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        .explanation {
+            line-height: 1.6;
+            color: #4b5563;
+        }
+        .highlight {
+            color: #d97706;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>⚖️ 归一与归总问题可视化演示 ⚖️</h1>
+    <div class="desc">直观理解“先求单一量”与“先求总量”的解题思路。</div>
+
+    <div class="control-panel">
+        <div class="mode-selection">
+            <button class="mode-btn active" onclick="setMode('unitary')">归一问题 (求单一量)</button>
+            <button class="mode-btn" onclick="setMode('total')">归总问题 (求总量)</button>
+        </div>
+
+        <!-- 归一 Inputs -->
+        <div id="unitary-inputs" class="input-row">
+            <div class="input-group">
+                已知：<input type="number" id="u_qty1" value="3" min="1" max="20" onchange="update()"> 个
+            </div>
+            <div class="input-group">
+                总价 <input type="number" id="u_total1" value="15" min="1" max="200" step="0.5" onchange="update()"> 元
+            </div>
+            <div class="input-group">
+                求：<input type="number" id="u_qty2" value="5" min="1" max="20" onchange="update()"> 个的总价
+            </div>
+        </div>
+
+        <!-- 归总 Inputs -->
+        <div id="total-inputs" class="input-row" style="display: none;">
+            <div class="input-group">
+                已知：每天修 <input type="number" id="t_rate1" value="20" min="1" max="100" onchange="update()"> 米
+            </div>
+            <div class="input-group">
+                修了 <input type="number" id="t_time1" value="6" min="1" max="30" onchange="update()"> 天
+            </div>
+            <div class="input-group">
+                若每天修 <input type="number" id="t_rate2" value="30" min="1" max="100" onchange="update()"> 米，需几天？
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="result-panel">
+        <div class="formula-title" id="modeTitle">归一问题</div>
+        <div id="formulaDisplay" class="formula-content">...</div>
+        <div class="explanation" id="explanationText">
+            <!-- Content injected via JS -->
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        let mode = 'unitary'; // unitary, total
+
+        // Unitary vars
+        let u_qty1 = 3, u_total1 = 15, u_qty2 = 5;
+        
+        // Total vars
+        let t_rate1 = 20, t_time1 = 6, t_rate2 = 30;
+
+        function resize() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            if (canvas.width > 0) draw();
+        }
+
+        window.addEventListener('resize', resize);
+        
+        // Initial resize
+        setTimeout(resize, 100);
+
+        function setMode(newMode) {
+            mode = newMode;
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            
+            // Find active button
+            const btns = document.querySelectorAll('.mode-btn');
+            btns.forEach(btn => {
+                 if (btn.getAttribute('onclick').includes(`'${newMode}'`)) {
+                     btn.classList.add('active');
+                 }
+            });
+
+            // Toggle inputs
+            if (mode === 'unitary') {
+                document.getElementById('unitary-inputs').style.display = 'flex';
+                document.getElementById('total-inputs').style.display = 'none';
+            } else {
+                document.getElementById('unitary-inputs').style.display = 'none';
+                document.getElementById('total-inputs').style.display = 'flex';
+            }
+            
+            update();
+        }
+
+        function update() {
+            if (mode === 'unitary') {
+                u_qty1 = parseFloat(document.getElementById('u_qty1').value);
+                u_total1 = parseFloat(document.getElementById('u_total1').value);
+                u_qty2 = parseFloat(document.getElementById('u_qty2').value);
+            } else {
+                t_rate1 = parseFloat(document.getElementById('t_rate1').value);
+                t_time1 = parseFloat(document.getElementById('t_time1').value);
+                t_rate2 = parseFloat(document.getElementById('t_rate2').value);
+            }
+
+            updateInfo();
+            draw();
+        }
+
+        function updateInfo() {
+            const titleEl = document.getElementById('modeTitle');
+            const formulaEl = document.getElementById('formulaDisplay');
+            const expEl = document.getElementById('explanationText');
+
+            if (mode === 'unitary') {
+                titleEl.innerText = "归一问题：先求单一量";
+                const unitPrice = u_total1 / u_qty1;
+                const result = unitPrice * u_qty2;
+                
+                // Format numbers to avoid long decimals
+                const unitStr = Number.isInteger(unitPrice) ? unitPrice : unitPrice.toFixed(2);
+                const resStr = Number.isInteger(result) ? result : result.toFixed(2);
+
+                formulaEl.innerHTML = `单一量 = ${u_total1} ÷ ${u_qty1} = ${unitStr} (元/个)<br>结果 = ${unitStr} × ${u_qty2} = ${resStr} (元)`;
+                
+                expEl.innerHTML = `
+                    <div><strong>第一步（归一）：</strong>先算出 1 个物品的价格。</div>
+                    <div>${u_qty1} 个的总价是 ${u_total1} 元，那么 1 个就是 <span class="highlight">${unitStr}</span> 元。</div>
+                    <div><strong>第二步：</strong>再根据单一量求出新数量的总价。</div>
+                    <div>${u_qty2} 个的总价就是 ${u_qty2} × ${unitStr} = <span class="highlight">${resStr}</span> 元。</div>
+                `;
+            } else {
+                titleEl.innerText = "归总问题：先求总量";
+                const totalWork = t_rate1 * t_time1;
+                const resultTime = totalWork / t_rate2;
+                
+                const resStr = Number.isInteger(resultTime) ? resultTime : resultTime.toFixed(2);
+
+                formulaEl.innerHTML = `总量 = ${t_rate1} × ${t_time1} = ${totalWork} (米)<br>结果 = ${totalWork} ÷ ${t_rate2} = ${resStr} (天)`;
+                
+                expEl.innerHTML = `
+                    <div><strong>第一步（归总）：</strong>先算出总的工作量（或路程）。</div>
+                    <div>每天修 ${t_rate1} 米，修了 ${t_time1} 天，总长度是 <span class="highlight">${totalWork}</span> 米。</div>
+                    <div><strong>第二步：</strong>再根据总量求出新的时间。</div>
+                    <div>总长 ${totalWork} 米，每天修 ${t_rate2} 米，需要 ${totalWork} ÷ ${t_rate2} = <span class="highlight">${resStr}</span> 天。</div>
+                `;
+            }
+        }
+
+        function draw() {
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            if (mode === 'unitary') {
+                drawUnitary(w, h);
+            } else {
+                drawTotal(w, h);
+            }
+        }
+
+        function drawUnitary(w, h) {
+            const unitPrice = u_total1 / u_qty1;
+            
+            // Draw Group 1
+            const startX = 50;
+            const startY = 50;
+            const itemGap = 60;
+            const itemRadius = 20;
+
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#333';
+            ctx.fillText(`第一组：${u_qty1} 个，共 ${u_total1} 元`, startX, startY - 10);
+
+            for(let i=0; i<u_qty1; i++) {
+                drawApple(startX + i * itemGap + itemRadius, startY + itemRadius, itemRadius);
+            }
+            
+            // Bracket for Group 1
+            drawBracket(startX, startY + itemRadius * 2 + 10, startX + u_qty1 * itemGap, startY + itemRadius * 2 + 10, `${u_total1} 元`);
+
+            // Arrow pointing to Unit
+            const midX1 = startX + (u_qty1 * itemGap) / 2;
+            const arrowY = startY + 80;
+            
+            ctx.beginPath();
+            ctx.moveTo(midX1, arrowY);
+            ctx.lineTo(midX1, arrowY + 30);
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillText(`归一：1个 = ${Number.isInteger(unitPrice)?unitPrice:unitPrice.toFixed(2)} 元`, midX1 + 10, arrowY + 20);
+
+            // Draw Group 2
+            const group2Y = startY + 150;
+            ctx.fillStyle = '#333';
+            ctx.fillText(`第二组：${u_qty2} 个，求总价？`, startX, group2Y - 10);
+
+            for(let i=0; i<u_qty2; i++) {
+                // If too many, wrap or limit? Let's just draw in line for now, assuming max 20 fits or scrolls
+                // Max 20 * 60 = 1200px, might be too wide.
+                // Let's wrap if i > 10
+                let x = startX + (i % 10) * itemGap + itemRadius;
+                let y = group2Y + itemRadius + Math.floor(i / 10) * 50;
+                drawApple(x, y, itemRadius);
+            }
+            
+            // Result Text
+            const result = unitPrice * u_qty2;
+            const resStr = Number.isInteger(result) ? result : result.toFixed(2);
+            
+            ctx.fillStyle = '#e11d48';
+            ctx.font = 'bold 20px Arial';
+            ctx.fillText(`结果：${resStr} 元`, startX, group2Y + 100);
+        }
+
+        function drawApple(x, y, r) {
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff6b6b';
+            ctx.fill();
+            ctx.strokeStyle = '#c92a2a';
+            ctx.stroke();
+            
+            // Stem
+            ctx.beginPath();
+            ctx.moveTo(x, y - r);
+            ctx.quadraticCurveTo(x + 5, y - r - 10, x + 10, y - r - 5);
+            ctx.strokeStyle = '#5c940d';
+            ctx.stroke();
+        }
+
+        function drawTotal(w, h) {
+            const totalWork = t_rate1 * t_time1;
+            
+            // Scale logic: Map totalWork to available width
+            const margin = 50;
+            const availW = w - 2 * margin;
+            const maxVal = Math.max(totalWork, 1); // Avoid div by 0
+            
+            const startY = 80;
+            const barH = 40;
+
+            // Draw Total Bar (Ghost)
+            ctx.fillStyle = '#e5e7eb';
+            ctx.fillRect(margin, startY, availW, barH);
+            ctx.strokeStyle = '#9ca3af';
+            ctx.strokeRect(margin, startY, availW, barH);
+            
+            ctx.fillStyle = '#333';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`总量 (归总) = ${totalWork} 米`, w/2, startY - 10);
+
+            // Scenario 1: t_time1 days
+            const dayW = availW / t_time1;
+            let y1 = startY + 60;
+            
+            ctx.textAlign = 'left';
+            ctx.fillText(`场景1：每天 ${t_rate1} 米 × ${t_time1} 天`, margin, y1 - 10);
+            
+            for(let i=0; i<t_time1; i++) {
+                ctx.fillStyle = '#60a5fa';
+                ctx.fillRect(margin + i*dayW, y1, dayW - 2, barH); // -2 for gap
+                
+                // Label daily rate if space permits
+                if (dayW > 30) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(t_rate1, margin + i*dayW + dayW/2, y1 + 25);
+                }
+            }
+
+            // Scenario 2: t_rate2 per day
+            let y2 = y1 + 80;
+            const resultDays = totalWork / t_rate2;
+            const dayW2 = (availW / totalWork) * t_rate2; // Width of one day in this new scale? 
+            // Actually, physical width of TOTAL is fixed (availW).
+            // So width of one day = availW / resultDays.
+            
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'left';
+            ctx.font = '16px Arial';
+            ctx.fillText(`场景2：每天 ${t_rate2} 米，需要 ? 天`, margin, y2 - 10);
+
+            for(let i=0; i<Math.ceil(resultDays); i++) {
+                let thisDayW = dayW2;
+                // Handle last partial day if any
+                if (i === Math.floor(resultDays) && resultDays % 1 !== 0) {
+                    thisDayW = dayW2 * (resultDays % 1);
+                }
+                
+                // If total exceeds bar (shouldn't happen if math is right), clip?
+                // The loop goes up to resultDays.
+                // The sum of widths = resultDays * dayW2 = (totalWork/rate2) * ((availW/totalWork)*rate2) = availW. Correct.
+
+                ctx.fillStyle = '#34d399';
+                ctx.fillRect(margin + i*dayW2, y2, thisDayW - 2, barH);
+                
+                 if (dayW2 > 30) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(t_rate2, margin + i*dayW2 + thisDayW/2, y2 + 25);
+                }
+            }
+            
+            // Result Text
+            const resStr = Number.isInteger(resultDays) ? resultDays : resultDays.toFixed(2);
+            ctx.fillStyle = '#e11d48';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`结果：${resStr} 天`, margin, y2 + barH + 40);
+        }
+
+        function drawBracket(x1, y1, x2, y2, text) {
+            const ctx = canvas.getContext('2d');
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2; // Not really used for flat bracket
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x1, y1 + 10);
+            ctx.lineTo(x2, y2 + 10); // y2 should be same as y1 for flat
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = '#666';
+            ctx.stroke();
+
+            ctx.fillStyle = '#666';
+            ctx.textAlign = 'center';
+            ctx.font = '14px Arial';
+            ctx.fillText(text, midX, y1 + 25);
+        }
+
+        // Init
+        resize();
+    </script>
+</body>
+</html>

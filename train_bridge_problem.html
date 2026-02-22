@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>火车过桥问题可视化演示</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .desc {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .input-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        .scenario-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 80px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+        .btn-reset {
+            background-color: #9ca3af;
+        }
+        .btn-reset:hover {
+            background-color: #6b7280;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .info-panel {
+            background-color: #eef2ff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: left;
+            margin-top: 20px;
+            border: 1px solid #dbeafe;
+        }
+        .formula-box {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #2563eb;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        .highlight { color: #dc2626; font-weight: bold; }
+        .highlight-blue { color: #2563eb; font-weight: bold; }
+        .step-explanation {
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 10px;
+            font-weight: bold;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🚂 火车过桥问题可视化 🌉</h1>
+    <div class="desc">输入桥长、车长和车速，直观理解“完全过桥”的路程计算。</div>
+
+    <div class="input-panel">
+        <div class="scenario-row">
+            <div class="input-group">
+                桥长 <input type="number" id="bridgeLen" value="500" min="10"> 米
+            </div>
+            <div class="input-group">
+                车长 <input type="number" id="trainLen" value="200" min="10"> 米
+            </div>
+            <div class="input-group">
+                车速 <input type="number" id="speed" value="30" min="1"> 米/秒
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn" onclick="startSimulation()">🚀 开始演示</button>
+            <button class="btn btn-reset" onclick="resetSimulation()">🔄 重置</button>
+        </div>
+
+        <div class="stats">
+            <span id="timerDisplay">⏱️ 时间: 0.0 秒</span>
+            <span id="statusDisplay">状态: 准备就绪</span>
+        </div>
+    </div>
+
+    <div class="container" id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="info-panel" id="resultPanel" style="display:none;">
+        <h3>📊 分析结果：</h3>
+        <div class="formula-box" id="formulaDisplay">
+            <!-- Formula will be injected here -->
+        </div>
+        <div class="step-explanation" id="explanationText">
+            <!-- Explanation will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        // State
+        let bridgeLen = 500;
+        let trainLen = 200;
+        let speed = 30;
+        
+        let currentTime = 0;
+        let totalTime = 0;
+        let totalDist = 0;
+        let isRunning = false;
+        let animationId = null;
+        let isFinished = false;
+
+        // Visual constants
+        const marginX = 50; // Horizontal margin
+        const groundY = 200;
+        
+        // We need to map "World coordinates" (meters) to "Screen coordinates" (pixels)
+        // World origin (0) will be at some offset from left margin to allow showing the train before the bridge
+        // Let's say Bridge starts at X = 0.
+        // Train starts with its Head at X = 0.
+        // Wait, "Start of crossing" usually means Head at Bridge Start?
+        // Or Head at Bridge Start is "Starting to cross".
+        // "Fully crossed" means Tail at Bridge End.
+        
+        // Let's define:
+        // Bridge Start = 0
+        // Bridge End = bridgeLen
+        // Train Head Position = x (starts at 0)
+        // Train Tail Position = x - trainLen
+        
+        // Animation runs from x = 0 (Head enters bridge) to x = bridgeLen + trainLen (Tail leaves bridge? No, Tail at bridgeLen)
+        // Wait.
+        // Start: Head at 0.
+        // End: Tail at bridgeLen.
+        // So Head must be at bridgeLen + trainLen.
+        // Yes. Total distance for Head = bridgeLen + trainLen.
+
+        function resize() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            draw();
+        }
+
+        window.addEventListener('resize', resize);
+
+        function resetSimulation() {
+            isRunning = false;
+            isFinished = false;
+            cancelAnimationFrame(animationId);
+            currentTime = 0;
+            
+            // Reload inputs
+            bridgeLen = parseFloat(document.getElementById('bridgeLen').value);
+            trainLen = parseFloat(document.getElementById('trainLen').value);
+            speed = parseFloat(document.getElementById('speed').value);
+            
+            totalDist = bridgeLen + trainLen;
+            totalTime = totalDist / speed;
+            
+            document.getElementById('timerDisplay').innerText = "⏱️ 时间: 0.0 秒";
+            document.getElementById('statusDisplay').innerText = "状态: 准备就绪";
+            document.getElementById('resultPanel').style.display = 'none';
+            
+            draw();
+        }
+
+        function startSimulation() {
+            if (isRunning) return;
+            
+            bridgeLen = parseFloat(document.getElementById('bridgeLen').value);
+            trainLen = parseFloat(document.getElementById('trainLen').value);
+            speed = parseFloat(document.getElementById('speed').value);
+
+            if (isNaN(bridgeLen) || isNaN(trainLen) || isNaN(speed) || bridgeLen <= 0 || trainLen <= 0 || speed <= 0) {
+                alert("请输入有效的正数值！");
+                return;
+            }
+
+            totalDist = bridgeLen + trainLen;
+            totalTime = totalDist / speed;
+            
+            if (isFinished) {
+                currentTime = 0;
+                isFinished = false;
+            }
+
+            isRunning = true;
+            document.getElementById('statusDisplay').innerText = "状态: 过桥中...";
+            animate();
+            showAnalysis();
+        }
+
+        function showAnalysis() {
+            const panel = document.getElementById('resultPanel');
+            panel.style.display = 'block';
+            
+            document.getElementById('formulaDisplay').innerHTML = `
+                过桥时间 = (桥长 + 车长) ÷ 车速<br>
+                ${totalTime.toFixed(1)} (秒) = (${bridgeLen} + ${trainLen}) ÷ ${speed}
+            `;
+
+            document.getElementById('explanationText').innerHTML = `
+                <strong>关键点解析：</strong><br>
+                1. <span class="highlight-blue">开始过桥</span>：车头刚好接触桥头。<br>
+                2. <span class="highlight-blue">完全过桥</span>：车尾刚好离开桥尾。<br>
+                3. 火车实际行驶的总路程 = 桥长 + 车长 = <span class="highlight">${totalDist}</span> 米。<br>
+                4. 所需时间 = 总路程 ÷ 速度 = ${totalDist} ÷ ${speed} = <span class="highlight">${totalTime.toFixed(1)}</span> 秒。
+            `;
+        }
+
+        function animate() {
+            if (!isRunning) return;
+
+            // Animation speed control
+            // Let's make the animation take about 4-5 seconds regardless of actual values
+            const realDurationSecs = 5; 
+            const timeStep = totalTime / (realDurationSecs * 60); 
+            
+            currentTime += timeStep;
+
+            if (currentTime >= totalTime) {
+                currentTime = totalTime;
+                isRunning = false;
+                isFinished = true;
+                document.getElementById('statusDisplay').innerText = "状态: 已完全通过 ✅";
+            }
+
+            document.getElementById('timerDisplay').innerText = `⏱️ 时间: ${currentTime.toFixed(1)} 秒`;
+            draw();
+
+            if (isRunning) {
+                animationId = requestAnimationFrame(animate);
+            }
+        }
+
+        function draw() {
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Calculate Scale
+            // We need to fit: (start margin) + (Train Length) + (Bridge Length) + (Train Length) + (end margin)
+            // Wait, we need to show the train BEFORE it enters, and AFTER it leaves?
+            // At t=0, Head is at BridgeStart. Train extends backwards.
+            // At t=end, Tail is at BridgeEnd. Head extends forwards.
+            // So the total visual width needed is roughly:
+            // Left space for Train (at start) + Bridge Length + Right space for Train (at end)
+            // = TrainLen + BridgeLen + TrainLen? 
+            // Actually, let's just center the bridge and ensure we have enough space for the train on both sides.
+            
+            // Let's define the visual width of the "Scene" in meters
+            const sceneWidthMeters = bridgeLen + trainLen * 3; // Bridge + space for train before and after
+            
+            // Scale: pixels per meter
+            const scale = (w - 2 * marginX) / sceneWidthMeters;
+            
+            // Define Bridge Start Position (in screen pixels)
+            // Let's place Bridge Start at: marginX + trainLen * scale + some padding?
+            // Let's center the bridge?
+            // Bridge width = bridgeLen * scale
+            // Scene starts at -trainLen*1.5 relative to Bridge Start?
+            
+            // Let's keep it simple:
+            // World coordinate 0 = Bridge Start
+            // World coordinate bridgeLen = Bridge End
+            // Train Head Position = v * t
+            
+            // Offset to center the relevant action
+            // Total action happens from x = -trainLen (Tail at start) to x = bridgeLen + trainLen (Head at end)
+            // Center of action is roughly bridgeLen/2
+            
+            const bridgeScreenLen = bridgeLen * scale;
+            const trainScreenLen = trainLen * scale;
+            
+            // Let's position BridgeStart so that the whole scene fits
+            // Start of scene (leftmost visual element at t=0) is Tail = -trainLen
+            // End of scene (rightmost visual element at t=end) is Head = bridgeLen + trainLen (wait, Head is at bridgeLen + trainLen at end? No.)
+            // At t=end, Tail is at bridgeLen. So Head is at bridgeLen + trainLen.
+            // So we need to show from -trainLen to bridgeLen + trainLen.
+            // Total span = bridgeLen + 2*trainLen.
+            
+            const totalSpan = bridgeLen + 2.5 * trainLen; // slightly more for padding
+            const dynamicScale = (w - 2 * marginX) / totalSpan;
+            
+            const bridgeStartX = marginX + 1.25 * trainLen * dynamicScale; 
+            const bridgeEndX = bridgeStartX + bridgeLen * dynamicScale;
+            
+            const trainHeadMeters = speed * currentTime; // relative to BridgeStart
+            const trainHeadX = bridgeStartX + trainHeadMeters * dynamicScale;
+            const trainTailX = trainHeadX - trainLen * dynamicScale;
+
+            // 1. Draw River/Valley
+            ctx.fillStyle = '#bae6fd';
+            ctx.fillRect(bridgeStartX, groundY + 20, bridgeEndX - bridgeStartX, 60);
+            
+            // Water waves
+            ctx.strokeStyle = '#7dd3fc';
+            ctx.lineWidth = 2;
+            for(let i=bridgeStartX; i<bridgeEndX; i+=20) {
+                ctx.beginPath();
+                ctx.moveTo(i, groundY + 40);
+                ctx.quadraticCurveTo(i+10, groundY + 30, i+20, groundY + 40);
+                ctx.stroke();
+            }
+
+            // 2. Draw Bridge
+            // Bridge Floor
+            ctx.fillStyle = '#64748b';
+            ctx.fillRect(bridgeStartX, groundY, bridgeEndX - bridgeStartX, 10);
+            
+            // Bridge Railings/Structure
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(bridgeStartX, groundY);
+            ctx.lineTo(bridgeEndX, groundY);
+            ctx.stroke();
+            
+            // Pillars
+            ctx.fillStyle = '#94a3b8';
+            const pillarGap = 50 * dynamicScale;
+            // Ensure at least 2 pillars
+            const numPillars = Math.max(2, Math.floor((bridgeEndX - bridgeStartX) / pillarGap));
+            const actualGap = (bridgeEndX - bridgeStartX) / (numPillars - 1);
+            
+            for(let i=0; i<numPillars; i++) {
+                const px = bridgeStartX + i * actualGap;
+                ctx.fillRect(px - 5, groundY + 10, 10, 70);
+            }
+            
+            // Bridge Labels
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('桥头', bridgeStartX, groundY + 100);
+            ctx.fillText('桥尾', bridgeEndX, groundY + 100);
+            
+            // Bridge Length Dimension
+            drawDimensionLine(ctx, bridgeStartX, groundY + 120, bridgeEndX, groundY + 120, `桥长 ${bridgeLen}m`);
+
+            // 3. Draw Train
+            // Train Body
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(trainTailX, groundY - 30, trainScreenLen, 30);
+            
+            // Train Windows
+            ctx.fillStyle = '#fff';
+            const windowWidth = 15;
+            const windowGap = 10;
+            // Draw as many windows as fit
+            const numWindows = Math.floor(trainScreenLen / (windowWidth + windowGap));
+            for(let i=0; i<numWindows; i++) {
+                const wx = trainTailX + 5 + i * (windowWidth + windowGap);
+                if (wx + windowWidth < trainHeadX) {
+                    ctx.fillRect(wx, groundY - 25, windowWidth, 15);
+                }
+            }
+            
+            // Train Wheels
+            ctx.fillStyle = '#333';
+            const wheelRadius = 6;
+            const wheelGap = 25;
+            const numWheels = Math.floor(trainScreenLen / wheelGap);
+            for(let i=0; i<=numWheels; i++) {
+                const wx = trainTailX + 5 + i * wheelGap;
+                if (wx + wheelRadius < trainHeadX) {
+                    ctx.beginPath();
+                    ctx.arc(wx, groundY, wheelRadius, 0, Math.PI*2);
+                    ctx.fill();
+                }
+            }
+
+            // Train Head Label
+            ctx.fillStyle = '#333';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('车头', trainHeadX + 5, groundY - 15);
+            
+            // Train Tail Label
+            ctx.textAlign = 'right';
+            ctx.fillText('车尾', trainTailX - 5, groundY - 15);
+            
+            // Train Length Dimension (above train)
+            drawDimensionLine(ctx, trainTailX, groundY - 45, trainHeadX, groundY - 45, `车长 ${trainLen}m`);
+
+            // 4. Progress Indicators
+            // Show distance traveled by Head? Or just visual?
+            // Let's show the "Distance Traveled" line at the top
+            
+            // Start line (Head start position)
+            const startLineX = bridgeStartX;
+            ctx.strokeStyle = '#22c55e';
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(startLineX, groundY - 80);
+            ctx.lineTo(startLineX, groundY + 10);
+            ctx.stroke();
+            
+            // End line (Tail end position? No, Head end position)
+            // Head travels bridgeLen + trainLen
+            // So Head ends at bridgeEndX + trainLen * dynamicScale
+            const endLineX = bridgeEndX + trainLen * dynamicScale; 
+             // Wait, if Tail is at bridgeEnd, Head is at bridgeEnd + trainLen. Correct.
+            
+            ctx.strokeStyle = '#22c55e';
+            ctx.beginPath();
+            ctx.moveTo(endLineX, groundY - 80);
+            ctx.lineTo(endLineX, groundY + 10);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw dimension for Total Distance
+            drawDimensionLine(ctx, startLineX, groundY - 80, endLineX, groundY - 80, `总路程 = 桥长 + 车长 = ${bridgeLen + trainLen}m`, '#22c55e');
+            
+            // Draw current head position marker on the dimension line
+            if (isRunning || isFinished) {
+                ctx.fillStyle = '#22c55e';
+                ctx.beginPath();
+                ctx.arc(trainHeadX, groundY - 80, 5, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+
+        function drawDimensionLine(ctx, x1, y1, x2, y2, text, color='#333') {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 1;
+            
+            // Line
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y1);
+            ctx.stroke();
+            
+            // Arrows
+            drawArrow(ctx, x1, y1, 'left');
+            drawArrow(ctx, x2, y1, 'right');
+            
+            // Text
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            // Draw text background to clear line
+            const textMetrics = ctx.measureText(text);
+            const textW = textMetrics.width;
+            
+            ctx.fillStyle = '#f9f9f9'; // Background color matches body
+            ctx.fillRect((x1+x2)/2 - textW/2 - 5, y1 - 8, textW + 10, 16);
+            
+            ctx.fillStyle = color;
+            ctx.fillText(text, (x1+x2)/2, y1 + 4);
+            
+            ctx.restore();
+        }
+
+        function drawArrow(ctx, x, y, dir) {
+            ctx.beginPath();
+            if (dir === 'left') {
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + 5, y - 3);
+                ctx.lineTo(x + 5, y + 3);
+            } else {
+                ctx.moveTo(x, y);
+                ctx.lineTo(x - 5, y - 3);
+                ctx.lineTo(x - 5, y + 3);
+            }
+            ctx.fill();
+        }
+
+        // Init
+        resize();
+        // Don't auto-calculate yet, let user see initial state
+        document.getElementById('resultPanel').style.display = 'none';
+        draw();
+    </script>
+</body>
+</html>

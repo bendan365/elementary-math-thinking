@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小学数学 - 和差倍问题可视化</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Microsoft YaHei', sans-serif;
+            background-color: #e3f2fd;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background-color: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            color: #1e88e5;
+            margin-bottom: 20px;
+        }
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            background-color: #bbdefb;
+            border-radius: 25px;
+            padding: 5px;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 16px;
+            color: #555;
+            transition: 0.3s;
+            flex: 1;
+        }
+        .tab-btn.active {
+            background-color: #1976d2;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .input-section {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .input-section.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+        .input-group {
+            margin: 10px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        label {
+            font-weight: bold;
+            color: #333;
+            min-width: 80px;
+            text-align: right;
+        }
+        input {
+            padding: 8px;
+            border: 2px solid #90caf9;
+            border-radius: 5px;
+            width: 100px;
+            font-size: 16px;
+            text-align: center;
+        }
+        button.calc-btn {
+            background-color: #43a047;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 10px;
+            box-shadow: 0 4px 0 #2e7d32;
+        }
+        button.calc-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 #2e7d32;
+        }
+        button.calc-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #2e7d32;
+        }
+        
+        #result-area {
+            margin-top: 30px;
+            display: none;
+            text-align: left;
+        }
+        .result-card {
+            background-color: #fff9c4;
+            border: 2px solid #fbc02d;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .visual-container {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: white;
+            border: 1px dashed #ccc;
+            border-radius: 10px;
+            position: relative;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 30px;
+        }
+        
+        /* Bar Visualization Styles */
+        .bar-row {
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+        .bar-label {
+            width: 80px;
+            font-weight: bold;
+            text-align: right;
+            margin-right: 15px;
+        }
+        .bar-wrapper {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .bar {
+            height: 40px;
+            background-color: #42a5f5;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            transition: width 1s ease-in-out;
+            position: relative;
+            border: 2px solid #1565c0;
+            box-sizing: border-box;
+        }
+        .bar.small {
+            background-color: #ef5350;
+            border-color: #c62828;
+        }
+        .bar.diff-segment {
+            background-color: repeating-linear-gradient(
+                45deg,
+                #fff,
+                #fff 10px,
+                #e0e0e0 10px,
+                #e0e0e0 20px
+            );
+            color: #555;
+            border: 2px dashed #9e9e9e;
+        }
+        
+        /* Brackets and Annotations */
+        .brace-label {
+            position: absolute;
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .step-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .step-item {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #e1f5fe;
+            border-left: 5px solid #039be5;
+            border-radius: 0 5px 5px 0;
+        }
+        .formula {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #d81b60;
+            background: rgba(255,255,255,0.5);
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .unit-mark {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            border-right: 1px dashed rgba(255,255,255,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔢 和差倍问题图形解法 📏</h1>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('sum-diff')">和差问题</button>
+            <button class="tab-btn" onclick="switchTab('sum-mult')">和倍问题</button>
+            <button class="tab-btn" onclick="switchTab('diff-mult')">差倍问题</button>
+        </div>
+
+        <!-- 和差 Input -->
+        <div id="input-sum-diff" class="input-section active">
+            <p>已知两个数的<strong>和</strong>与<strong>差</strong>，求这两个数。</p>
+            <div class="input-group">
+                <label>和 (Sum)：</label>
+                <input type="number" id="sd-sum" placeholder="例如: 20" min="2">
+            </div>
+            <div class="input-group">
+                <label>差 (Diff)：</label>
+                <input type="number" id="sd-diff" placeholder="例如: 4" min="0">
+            </div>
+            <button class="calc-btn" onclick="solveSumDiff()">📐 画图求解</button>
+        </div>
+
+        <!-- 和倍 Input -->
+        <div id="input-sum-mult" class="input-section">
+            <p>已知两个数的<strong>和</strong>与<strong>倍数关系</strong>，求这两个数。</p>
+            <div class="input-group">
+                <label>和 (Sum)：</label>
+                <input type="number" id="sm-sum" placeholder="例如: 24" min="2">
+            </div>
+            <div class="input-group">
+                <label>倍数 (N)：</label>
+                <input type="number" id="sm-mult" placeholder="例如: 3" min="1">
+            </div>
+            <button class="calc-btn" onclick="solveSumMult()">📐 画图求解</button>
+        </div>
+
+        <!-- 差倍 Input -->
+        <div id="input-diff-mult" class="input-section">
+            <p>已知两个数的<strong>差</strong>与<strong>倍数关系</strong>，求这两个数。</p>
+            <div class="input-group">
+                <label>差 (Diff)：</label>
+                <input type="number" id="dm-diff" placeholder="例如: 12" min="1">
+            </div>
+            <div class="input-group">
+                <label>倍数 (N)：</label>
+                <input type="number" id="dm-mult" placeholder="例如: 3" min="2">
+            </div>
+            <button class="calc-btn" onclick="solveDiffMult()">📐 画图求解</button>
+        </div>
+
+        <div id="result-area">
+            <div class="result-card">
+                <h3>🎉 计算结果</h3>
+                <p id="numerical-result" style="font-size: 20px; font-weight: bold; color: #333;"></p>
+            </div>
+
+            <h3>👀 图形化过程展示</h3>
+            <div id="visual-area" class="visual-container">
+                <!-- Visualization will be injected here -->
+            </div>
+
+            <h3>📝 解题步骤</h3>
+            <div id="steps-area" class="step-list">
+                <!-- Steps will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab Switching
+        function switchTab(tabName) {
+            // Hide all inputs
+            document.querySelectorAll('.input-section').forEach(el => {
+                el.classList.remove('active');
+            });
+            // Show selected
+            document.getElementById('input-' + tabName).classList.add('active');
+            
+            // Update buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active'); // Current button
+
+            // Hide result area when switching
+            document.getElementById('result-area').style.display = 'none';
+        }
+
+        // 1. 和差问题 (Sum-Difference)
+        function solveSumDiff() {
+            const sum = parseFloat(document.getElementById('sd-sum').value);
+            const diff = parseFloat(document.getElementById('sd-diff').value);
+
+            if (isNaN(sum) || isNaN(diff)) { alert('请输入有效的数字！'); return; }
+            if (sum < diff) { alert('和不能小于差哦！'); return; }
+            if ((sum + diff) % 2 !== 0) { alert('和与差的奇偶性不同，结果不是整数。(本演示支持小数，但建议使用匹配的整数)'); }
+
+            const big = (sum + diff) / 2;
+            const small = (sum - diff) / 2;
+
+            showResult(big, small);
+            renderSumDiffVisual(big, small, sum, diff);
+            renderSumDiffSteps(big, small, sum, diff);
+        }
+
+        // 2. 和倍问题 (Sum-Multiple)
+        function solveSumMult() {
+            const sum = parseFloat(document.getElementById('sm-sum').value);
+            const mult = parseFloat(document.getElementById('sm-mult').value);
+
+            if (isNaN(sum) || isNaN(mult)) { alert('请输入有效的数字！'); return; }
+            if (mult <= 0) { alert('倍数必须大于0！'); return; }
+
+            // sum = small * (1 + mult)
+            const small = sum / (1 + mult);
+            const big = small * mult;
+
+            showResult(big, small);
+            renderSumMultVisual(big, small, sum, mult);
+            renderSumMultSteps(big, small, sum, mult);
+        }
+
+        // 3. 差倍问题 (Difference-Multiple)
+        function solveDiffMult() {
+            const diff = parseFloat(document.getElementById('dm-diff').value);
+            const mult = parseFloat(document.getElementById('dm-mult').value);
+
+            if (isNaN(diff) || isNaN(mult)) { alert('请输入有效的数字！'); return; }
+            if (mult <= 1) { alert('差倍问题的倍数必须大于1！'); return; }
+
+            // diff = small * (mult - 1)
+            const small = diff / (mult - 1);
+            const big = small * mult;
+
+            showResult(big, small);
+            renderDiffMultVisual(big, small, diff, mult);
+            renderDiffMultSteps(big, small, diff, mult);
+        }
+
+        function showResult(big, small) {
+            document.getElementById('result-area').style.display = 'block';
+            document.getElementById('numerical-result').innerHTML = 
+                `大数: <span style="color:#1976d2">${parseFloat(big.toFixed(2))}</span> &nbsp;&nbsp; 
+                 小数: <span style="color:#d32f2f">${parseFloat(small.toFixed(2))}</span>`;
+        }
+
+        // Visualization Helpers
+        function createBarHTML(label, widthPercent, value, colorClass, extraHTML = '') {
+            return `
+                <div class="bar-row">
+                    <div class="bar-label">${label}</div>
+                    <div class="bar-wrapper">
+                        <div class="bar ${colorClass}" style="width: ${widthPercent}%;">
+                            ${parseFloat(value.toFixed(2))}
+                            ${extraHTML}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderSumDiffVisual(big, small, sum, diff) {
+            // We want Big to take up about 75% of width to leave room for brace
+            const maxBarWidthPct = 75;
+            
+            const bigPct = maxBarWidthPct;
+            const smallPct = (small / big) * maxBarWidthPct;
+            
+            // diffPct for the ghost segment
+            // The ghost segment + small bar should equal big bar visual
+            const diffPct = bigPct - smallPct;
+
+            let html = '';
+            
+            // Big number bar
+            html += createBarHTML('大数', bigPct, big, '');
+            
+            // Spacer
+            html += '<div style="height: 20px;"></div>';
+
+            // Small number bar + Ghost Diff
+            html += `
+                <div class="bar-row">
+                    <div class="bar-label">小数</div>
+                    <div class="bar-wrapper">
+                        <div class="bar small" style="width: ${smallPct}%;">${parseFloat(small.toFixed(2))}</div>
+                        <!-- Virtual part to show difference -->
+                        <div class="bar diff-segment" style="width: ${diffPct}%; border-left: none; color: #777; font-size: 0.9em;">
+                            差: ${diff}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Sum Bracket (Vertical on the right)
+            html += `
+                <div style="position: absolute; right: 20px; top: 10px; bottom: 10px; width: 20px; border: 2px solid #333; border-left: none; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: #e3f2fd; padding: 5px; margin-left: 60px; white-space: nowrap; border-radius: 5px; border: 1px solid #90caf9;">
+                        <strong>和: ${sum}</strong>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('visual-area').innerHTML = html;
+        }
+
+        function renderSumMultVisual(big, small, sum, mult) {
+            // Normalize for visual width (max 75% to match others)
+            const totalUnits = mult + 1; // Wait, big is mult units, small is 1. Big is longer.
+            // Actually, if mult is large, Big is much larger than Small.
+            // We want Big to fit in 75%.
+            
+            const maxBarWidthPct = 75;
+            const unitPct = maxBarWidthPct / mult;
+            
+            let html = '';
+            
+            // Small number (1 Unit)
+            html += `
+                <div class="bar-row">
+                    <div class="bar-label">小数 (1倍)</div>
+                    <div class="bar-wrapper">
+                        <div class="bar small" style="width: ${unitPct}%;">${parseFloat(small.toFixed(2))}</div>
+                    </div>
+                </div>
+            `;
+            
+            html += '<div style="height: 20px;"></div>';
+
+            // Big number (N Units)
+            let unitMarks = '';
+            for(let i=1; i<mult; i++) {
+                unitMarks += `<div class="unit-mark" style="left: ${(i/mult)*100}%"></div>`;
+            }
+
+            html += `
+                <div class="bar-row">
+                    <div class="bar-label">大数 (${mult}倍)</div>
+                    <div class="bar-wrapper">
+                        <div class="bar" style="width: ${unitPct * mult}%;">
+                            ${parseFloat(big.toFixed(2))}
+                            ${unitMarks}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Sum Bracket
+            html += `
+                <div style="position: absolute; right: 20px; top: 10px; bottom: 10px; width: 20px; border: 2px solid #333; border-left: none; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: #e3f2fd; padding: 5px; margin-left: 60px; white-space: nowrap; border-radius: 5px; border: 1px solid #90caf9;">
+                        <strong>和: ${sum}</strong><br><span style="font-size:0.8em">(共 ${mult+1} 份)</span>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('visual-area').innerHTML = html;
+        }
+
+        function renderDiffMultVisual(big, small, diff, mult) {
+             // Normalize
+            const maxUnits = mult; // Big number is the largest
+            const unitPct = 70 / maxUnits;
+            
+            let html = '';
+            
+            // Small number (1 Unit)
+            html += `
+                <div class="bar-row">
+                    <div class="bar-label">小数 (1倍)</div>
+                    <div class="bar-wrapper">
+                        <div class="bar small" style="width: ${unitPct}%;">${parseFloat(small.toFixed(2))}</div>
+                        <!-- Invisible spacer to match big bar length for alignment if needed -->
+                    </div>
+                </div>
+            `;
+            
+            html += '<div style="height: 40px;"></div>'; // More space for brace
+
+            // Big number (N Units)
+            let unitMarks = '';
+            for(let i=1; i<mult; i++) {
+                unitMarks += `<div class="unit-mark" style="left: ${(i/mult)*100}%"></div>`;
+            }
+            
+            // Difference Brace Logic
+            // Start after 1 unit (unitPct)
+            // Width is remaining units (unitPct * (mult-1))
+            
+            html += `
+                <div class="bar-row">
+                    <div class="bar-label">大数 (${mult}倍)</div>
+                    <div class="bar-wrapper" style="position: relative;">
+                        <div class="bar" style="width: ${unitPct * mult}%;">
+                            ${parseFloat(big.toFixed(2))}
+                            ${unitMarks}
+                        </div>
+                        
+                        <!-- Difference Indicator attached to the wrapper -->
+                        <div style="position: absolute; 
+                                    left: ${unitPct}%; 
+                                    width: ${unitPct * (mult - 1)}%;
+                                    bottom: -25px;
+                                    border-bottom: 2px solid #d32f2f;
+                                    height: 10px;
+                                    border-left: 2px solid #d32f2f;
+                                    border-right: 2px solid #d32f2f;">
+                            <div style="text-align: center; margin-top: 12px; color: #d32f2f; white-space: nowrap;">
+                                差: ${diff}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('visual-area').innerHTML = html;
+        }
+
+        // Step Generators
+        function renderSumDiffSteps(big, small, sum, diff) {
+            let html = `
+                <li class="step-item">
+                    <strong>步骤 1：</strong> 理解公式 <br>
+                    如果我们把大数减去差，它就和小数一样大了。<br>
+                    或者：如果我们把小数加上差，它就和大数一样大了。
+                </li>
+                <li class="step-item">
+                    <strong>步骤 2：</strong> 求小数 (较小的那个数)<br>
+                    <span class="formula">(和 - 差) ÷ 2 = 小数</span><br>
+                    (${sum} - ${diff}) ÷ 2 = ${sum - diff} ÷ 2 = <strong>${parseFloat(small.toFixed(2))}</strong>
+                </li>
+                <li class="step-item">
+                    <strong>步骤 3：</strong> 求大数 (较大的那个数)<br>
+                    <span class="formula">小数 + 差 = 大数</span> &nbsp; 或者 &nbsp; <span class="formula">和 - 小数 = 大数</span><br>
+                    ${parseFloat(small.toFixed(2))} + ${diff} = <strong>${parseFloat(big.toFixed(2))}</strong>
+                </li>
+            `;
+            document.getElementById('steps-area').innerHTML = html;
+        }
+
+        function renderSumMultSteps(big, small, sum, mult) {
+            let html = `
+                <li class="step-item">
+                    <strong>步骤 1：</strong> 找"1倍量" (通常是小数)<br>
+                    小数看作 1 份，大数是 ${mult} 份。<br>
+                    总和一共是 <span class="formula">1 + ${mult} = ${mult + 1}</span> 份。
+                </li>
+                <li class="step-item">
+                    <strong>步骤 2：</strong> 求小数 (1份是多少)<br>
+                    <span class="formula">和 ÷ (倍数 + 1) = 小数</span><br>
+                    ${sum} ÷ (${mult} + 1) = ${sum} ÷ ${mult + 1} = <strong>${parseFloat(small.toFixed(2))}</strong>
+                </li>
+                <li class="step-item">
+                    <strong>步骤 3：</strong> 求大数<br>
+                    <span class="formula">小数 × 倍数 = 大数</span><br>
+                    ${parseFloat(small.toFixed(2))} × ${mult} = <strong>${parseFloat(big.toFixed(2))}</strong>
+                </li>
+            `;
+            document.getElementById('steps-area').innerHTML = html;
+        }
+
+        function renderDiffMultSteps(big, small, diff, mult) {
+            let html = `
+                <li class="step-item">
+                    <strong>步骤 1：</strong> 找"差的份数"<br>
+                    大数是 ${mult} 份，小数是 1 份。<br>
+                    它们的差对应的是 <span class="formula">${mult} - 1 = ${mult - 1}</span> 份。
+                </li>
+                <li class="step-item">
+                    <strong>步骤 2：</strong> 求小数 (1份是多少)<br>
+                    <span class="formula">差 ÷ (倍数 - 1) = 小数</span><br>
+                    ${diff} ÷ (${mult} - 1) = ${diff} ÷ ${mult - 1} = <strong>${parseFloat(small.toFixed(2))}</strong>
+                </li>
+                <li class="step-item">
+                    <strong>步骤 3：</strong> 求大数<br>
+                    <span class="formula">小数 × 倍数 = 大数</span><br>
+                    ${parseFloat(small.toFixed(2))} × ${mult} = <strong>${parseFloat(big.toFixed(2))}</strong>
+                </li>
+            `;
+            document.getElementById('steps-area').innerHTML = html;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小学数学工程问题可视化演示</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f0f7ff;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .desc {
+            color: #555;
+            margin-bottom: 25px;
+            font-size: 16px;
+        }
+        .control-panel {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .input-row {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+        }
+        input[type="number"] {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            width: 80px;
+            font-size: 16px;
+            text-align: center;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            min-height: 400px;
+            background-color: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            overflow: hidden;
+            margin-bottom: 20px;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .result-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 5px solid #3b82f6;
+            text-align: left;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .formula-title {
+            font-weight: bold;
+            font-size: 18px;
+            color: #3b82f6;
+            margin-bottom: 10px;
+        }
+        .formula-content {
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            background-color: #eff6ff;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        .explanation {
+            line-height: 1.6;
+            color: #4b5563;
+        }
+        .highlight {
+            color: #d97706;
+            font-weight: bold;
+        }
+        .fraction {
+            display: inline-block;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 0.9em;
+        }
+        .fraction > span {
+            display: block;
+            padding: 0 2px;
+        }
+        .fraction span.bottom {
+            border-top: 1px solid #000;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🏗️ 工程问题可视化演示 🏗️</h1>
+    <div class="desc">把工作总量看作单位“1”，通过效率解决多人合作问题。</div>
+
+    <div class="control-panel">
+        <div class="input-row">
+            <div class="input-group">
+                甲单独做需 <input type="number" id="timeA" value="10" min="1" max="100" onchange="update()"> 天
+            </div>
+            <div class="input-group">
+                乙单独做需 <input type="number" id="timeB" value="15" min="1" max="100" onchange="update()"> 天
+            </div>
+        </div>
+        <div class="input-row">
+            <div style="color: #666; font-size: 14px;">
+                (尝试修改天数，观察效率和合作时间的变化)
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="result-panel">
+        <div class="formula-title">计算过程</div>
+        <div id="formulaDisplay" class="explanation">
+            <!-- Content injected via JS -->
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        let timeA = 10;
+        let timeB = 15;
+
+        function resize() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            if (canvas.width > 0) draw();
+        }
+
+        window.addEventListener('resize', resize);
+        
+        // Initial resize
+        setTimeout(resize, 100);
+
+        function update() {
+            timeA = parseFloat(document.getElementById('timeA').value);
+            timeB = parseFloat(document.getElementById('timeB').value);
+            
+            if (timeA <= 0) timeA = 1;
+            if (timeB <= 0) timeB = 1;
+
+            updateInfo();
+            draw();
+        }
+
+        function toFractionHTML(numerator, denominator) {
+            return `<div class="fraction"><span>${numerator}</span><span class="bottom">${denominator}</span></div>`;
+        }
+
+        function updateInfo() {
+            const effA = 1 / timeA;
+            const effB = 1 / timeB;
+            const combinedEff = effA + effB;
+            const totalTime = 1 / combinedEff;
+            
+            // Format for display
+            const effAstr = `1/${timeA}`;
+            const effBstr = `1/${timeB}`;
+            
+            // LCM for nice fraction display (simplified)
+            // Just displaying decimal or raw fraction string for now to be safe and simple
+            
+            const resStr = Number.isInteger(totalTime) ? totalTime : totalTime.toFixed(2);
+            
+            const formulaEl = document.getElementById('formulaDisplay');
+            formulaEl.innerHTML = `
+                <div><strong>1. 设工作总量为 “1”</strong></div>
+                <div><strong>2. 求效率：</strong></div>
+                <div style="margin-left: 20px;">
+                    甲的效率 = ${toFractionHTML(1, timeA)} (每天完成总量的 ${toFractionHTML(1, timeA)})
+                </div>
+                <div style="margin-left: 20px;">
+                    乙的效率 = ${toFractionHTML(1, timeB)} (每天完成总量的 ${toFractionHTML(1, timeB)})
+                </div>
+                <div><strong>3. 求合作效率：</strong></div>
+                <div style="margin-left: 20px;">
+                    甲乙合作效率 = ${toFractionHTML(1, timeA)} + ${toFractionHTML(1, timeB)} = ${toFractionHTML(timeA+timeB, timeA*timeB)} ≈ ${(combinedEff).toFixed(3)}
+                </div>
+                <div><strong>4. 求合作时间：</strong></div>
+                <div style="margin-left: 20px;">
+                    合作时间 = 总量 ÷ 合作效率 = 1 ÷ (${toFractionHTML(1, timeA)} + ${toFractionHTML(1, timeB)}) = <span class="highlight">${resStr}</span> 天
+                </div>
+            `;
+        }
+
+        function draw() {
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+            
+            const margin = 50;
+            const availW = w - 2 * margin;
+            const barH = 40;
+            const startY = 60;
+            const gapY = 80;
+
+            // Draw Total Work Bar (Reference)
+            drawBar(margin, startY, availW, barH, '#e5e7eb', '总量 "1"');
+            
+            // Draw A's Efficiency
+            const wA = availW / timeA;
+            drawBar(margin, startY + gapY, availW, barH, '#f3f4f6', `甲单独: ${timeA}天`);
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(margin, startY + gapY, wA, barH);
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.font = '14px Arial';
+            if (wA > 30) ctx.fillText(`1/${timeA}`, margin + wA/2, startY + gapY + 25);
+            ctx.fillStyle = '#3b82f6';
+            ctx.textAlign = 'left';
+            ctx.fillText(`甲效率`, margin + wA + 10, startY + gapY + 25);
+
+            // Draw B's Efficiency
+            const wB = availW / timeB;
+            drawBar(margin, startY + gapY * 2, availW, barH, '#f3f4f6', `乙单独: ${timeB}天`);
+            ctx.fillStyle = '#10b981';
+            ctx.fillRect(margin, startY + gapY * 2, wB, barH);
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            if (wB > 30) ctx.fillText(`1/${timeB}`, margin + wB/2, startY + gapY * 2 + 25);
+            ctx.fillStyle = '#10b981';
+            ctx.textAlign = 'left';
+            ctx.fillText(`乙效率`, margin + wB + 10, startY + gapY * 2 + 25);
+
+            // Draw Cooperation
+            const combinedEff = 1/timeA + 1/timeB;
+            const totalTime = 1 / combinedEff;
+            const dayWidth = wA + wB; // Pixels per day
+            
+            drawBar(margin, startY + gapY * 3, availW, barH, '#f3f4f6', `合作: ? 天`);
+            
+            // Draw repeated blocks of (A+B)
+            let currentX = margin;
+            let days = 0;
+            // Limit loop to avoid browser crash if inputs are weird
+            const maxDays = Math.ceil(totalTime) + 1; 
+            
+            for (let d = 0; d < maxDays; d++) {
+                if (currentX >= margin + availW) break;
+
+                // 1. Draw A's part for this day
+                let drawWA = wA;
+                // Clip if exceeds total width
+                if (currentX + drawWA > margin + availW) {
+                    drawWA = margin + availW - currentX;
+                }
+                
+                if (drawWA > 0) {
+                    ctx.fillStyle = '#3b82f6';
+                    ctx.fillRect(currentX, startY + gapY * 3, drawWA, barH);
+                }
+
+                // 2. Draw B's part for this day
+                let bStartX = currentX + wA; // Visually B follows A
+                let drawWB = wB;
+                
+                // If A was already clipped, B might not start or be clipped immediately
+                if (bStartX < margin + availW) {
+                    if (bStartX + drawWB > margin + availW) {
+                        drawWB = margin + availW - bStartX;
+                    }
+                    if (drawWB > 0) {
+                        ctx.fillStyle = '#10b981';
+                        ctx.fillRect(bStartX, startY + gapY * 3, drawWB, barH);
+                    }
+                }
+
+                // 3. Draw Day Separator (at the end of this day's work)
+                let endOfDayX = currentX + wA + wB;
+                if (endOfDayX <= margin + availW) {
+                    ctx.beginPath();
+                    ctx.moveTo(endOfDayX, startY + gapY * 3);
+                    ctx.lineTo(endOfDayX, startY + gapY * 3 + barH);
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Label day number if space permits
+                    if (dayWidth > 20) {
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '12px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(d + 1, currentX + dayWidth/2, startY + gapY * 3 + barH - 5);
+                    }
+                }
+
+                currentX += dayWidth;
+            }
+            
+            // Label Result
+            ctx.fillStyle = '#e11d48';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'left';
+            const resStr = Number.isInteger(totalTime) ? totalTime : totalTime.toFixed(2);
+            ctx.fillText(`合作需要: ${resStr} 天`, margin, startY + gapY * 3 + barH + 40);
+        }
+
+        function drawBar(x, y, w, h, bgColor, label) {
+            // Label
+            ctx.fillStyle = '#333';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(label, x, y - 8);
+
+            // Background
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeStyle = '#9ca3af';
+            ctx.strokeRect(x, y, w, h);
+        }
+
+        // Init
+        update();
+    </script>
+</body>
+</html>
